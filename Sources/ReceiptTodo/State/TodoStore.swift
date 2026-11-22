@@ -76,7 +76,7 @@ final class TodoStore: ObservableObject {
 
     var onWindowLayoutChange: ((Bool) -> Void)?
     var onAlwaysOnTopChange: ((Bool) -> Void)?
-    var onGlobalHotkeyChange: ((Bool) -> Void)?
+    var onGlobalHotkeyChange: ((Bool, GlobalHotkeyConfig) -> Void)?
     var onOpenSettings: (() -> Void)?
     var onResetPosition: (() -> Void)?
     var onShowShareCard: ((DailyReceipt, Int, Bool) -> Void)?
@@ -1225,13 +1225,14 @@ final class TodoStore: ObservableObject {
     func updateSettings(_ newSettings: AppSettings) {
         let topChanged = settings.alwaysOnTop != newSettings.alwaysOnTop
         let hotkeyChanged = settings.globalHotkeyEnabled != newSettings.globalHotkeyEnabled
+            || settings.globalHotkey != newSettings.globalHotkey
         settings = newSettings
         storage.saveSettings(newSettings)
         if topChanged {
             onAlwaysOnTopChange?(newSettings.alwaysOnTop)
         }
         if hotkeyChanged {
-            onGlobalHotkeyChange?(newSettings.globalHotkeyEnabled)
+            onGlobalHotkeyChange?(newSettings.globalHotkeyEnabled, newSettings.globalHotkey)
         }
     }
 

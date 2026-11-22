@@ -1,3 +1,5 @@
+import AppKit
+import Carbon
 import SwiftUI
 
 struct SettingsView: View {
@@ -254,7 +256,23 @@ struct SettingsView: View {
 
                     Toggle("始终置顶悬浮在其他窗口上方", isOn: $draft.alwaysOnTop)
                     Toggle("开启打印机出纸与划掉音效", isOn: $draft.soundEnabled)
-                    Toggle("全局快捷键 Option + Space 随时唤醒语音记录", isOn: $draft.globalHotkeyEnabled)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 8) {
+                            Toggle("全局快捷键唤醒语音记录", isOn: $draft.globalHotkeyEnabled)
+                            Spacer()
+                            if draft.globalHotkeyEnabled {
+                                ShortcutRecorderControl(hotkey: $draft.globalHotkey)
+                            }
+                        }
+
+                        if draft.globalHotkeyEnabled {
+                            Text("点击右侧快捷键框后直接按下想要的组合键（需含 ⌘ / ⌥ / ⌃，按 Esc 取消），或点下拉选择常用预设。")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
                     Toggle("登录 Mac 时自动启动", isOn: Binding(
                         get: { launchAtLogin },
                         set: { newValue in
@@ -314,7 +332,7 @@ struct SettingsView: View {
             }
             .padding(18)
         }
-        .frame(width: 500, height: 610)
+        .frame(width: 500, height: 635)
         .alert("确认清空今日全部待办？", isPresented: $showClearAllConfirm) {
             Button("取消", role: .cancel) {}
             Button("全部清除", role: .destructive) {
@@ -364,6 +382,139 @@ struct SettingsView: View {
                     llmTestResult = error.localizedDescription
                 }
             }
+        }
+    }
+}
+
+// MARK: - Interactive Global Shortcut Recorder (Click to Record Any Key Combo + Presets)
+
+private struct ShortcutRecorderControl: View {
+    @Binding var hotkey: GlobalHotkeyConfig
+
+    @State private var isRecording = false
+    @State private var keyMonitor: Any?
+    @State private var warningFlash = false
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Button {
+                if isRecording {
+                    stopRecording()
+                } else {
+                    startRecording()
+                }
+            } label: {
+                Text(isRecording ? "请按下组合键..." : hotkey.displaySymbols)
+                    .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
+                    .foregroundColor(isRecording ? .accentColor : .primary)
+                    .padding(.horizontal, 10)
+                    .frame(minWidth: 96)
+                    .frame(height: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(isRecording ? Color.accentColor.opacity(0.12) : Color.primary.opacity(0.06))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(
+                                warningFlash
+                                    ? Color.red
+                                    : (isRecording ? Color.accentColor : Color.primary.opacity(0.18)),
+                                lineWidth: isRecording ? 1.5 : 0.8
+                            )
+                    )
+            }
+            .buttonStyle(.plain)
+            .help(isRecording ? "直接按下新的组合键，或按 Esc 取消" : "点击后按下自定义快捷键")
+
+            // Quick presets menu for effortless 1-click conflict avoidance
+            Menu {
+                ForEach(GlobalHotkeyConfig.presets, id: \.label) { preset in
+                    Button {
+                        stopRecording()
+                        hotkey = preset.config
+                    } label: {
+                        HStack {
+                            Text(preset.label)
+                            if hotkey == preset.config {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9.5, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .frame(width: 22, height: 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.primary.opacity(0.05))
+                    )
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 22)
+            .help("选择常用快捷键预设")
+
+            if hotkey != .defaultOptionSpace && !isRecording {
+                Button {
+                    hotkey = .defaultOptionSpace
+                } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 20, height: 24)
+                }
+                .buttonStyle(.plain)
+                .help("恢复默认 ⌥ Space")
+            }
+        }
+        .onDisappear {
+            stopRecording()
+        }
+    }
+
+    private func startRecording() {
+        stopRecording()
+        isRecording = true
+        warningFlash = false
+        GlobalHotkeyManager.shared.pauseTemporarily()
+
+        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            if event.keyCode == UInt16(kVK_Escape) {
+                Task { @MainActor in
+                    stopRecording()
+                }
+                return nil
+            }
+
+            if let captured = GlobalHotkeyConfig.from(event: event) {
+                Task { @MainActor in
+                    hotkey = captured
+                    stopRecording()
+                }
+                return nil
+            } else {
+                // Flash red border briefly if user pressed a plain letter without ⌘/⌥/⌃
+                Task { @MainActor in
+                    withAnimation(.easeInOut(duration: 0.12)) { warningFlash = true }
+                    try? await Task.sleep(nanoseconds: 350_000_000)
+                    withAnimation(.easeOut(duration: 0.2)) { warningFlash = false }
+                }
+                return nil
+            }
+        }
+    }
+
+    private func stopRecording() {
+        if let monitor = keyMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyMonitor = nil
+        }
+        if isRecording {
+            isRecording = false
+            GlobalHotkeyManager.shared.resumeIfNeeded()
         }
     }
 }

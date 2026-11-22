@@ -649,6 +649,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var store: TodoStore!
     private var panelController: FloatingPanelController!
     private var statusItem: NSStatusItem!
+    private var voiceMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         setupMainMenu()
@@ -667,9 +668,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.panelController.show()
             self.store.toggleVoiceRecording()
         }
-        GlobalHotkeyManager.shared.setEnabled(store.settings.globalHotkeyEnabled, onTrigger: handler)
-        store.onGlobalHotkeyChange = { enabled in
-            GlobalHotkeyManager.shared.setEnabled(enabled, onTrigger: handler)
+        GlobalHotkeyManager.shared.configure(
+            enabled: store.settings.globalHotkeyEnabled,
+            config: store.settings.globalHotkey,
+            onTrigger: handler
+        )
+        store.onGlobalHotkeyChange = { [weak self] enabled, config in
+            GlobalHotkeyManager.shared.configure(enabled: enabled, config: config, onTrigger: handler)
+            self?.refreshVoiceMenuItemTitle(enabled: enabled, config: config)
+        }
+    }
+
+    private func refreshVoiceMenuItemTitle(enabled: Bool, config: GlobalHotkeyConfig) {
+        if enabled {
+            voiceMenuItem?.title = "语音记录今日待办 (\(config.displaySymbols))"
+        } else {
+            voiceMenuItem?.title = "语音记录今日待办"
         }
     }
 
@@ -722,8 +736,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toggleExpandItem.target = self
         menu.addItem(toggleExpandItem)
 
-        let voiceItem = NSMenuItem(title: "语音记录今日待办 (⌥Space)", action: #selector(triggerVoice), keyEquivalent: "v")
+        let voiceTitle = store.settings.globalHotkeyEnabled
+            ? "语音记录今日待办 (\(store.settings.globalHotkey.displaySymbols))"
+            : "语音记录今日待办"
+        let voiceItem = NSMenuItem(title: voiceTitle, action: #selector(triggerVoice), keyEquivalent: "v")
         voiceItem.target = self
+        self.voiceMenuItem = voiceItem
         menu.addItem(voiceItem)
 
         let copyItem = NSMenuItem(title: "复制今日已完成 (日报)", action: #selector(copyCompleted), keyEquivalent: "c")

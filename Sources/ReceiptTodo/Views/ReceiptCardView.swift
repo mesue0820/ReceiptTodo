@@ -23,7 +23,13 @@ struct RootWidgetView: View {
             Button(store.isExpanded ? "收起小票" : "展开小票") {
                 store.toggleExpanded()
             }
-            Button(speech.isRecording ? "停止录音并打印" : "语音输入今日待办 (⌥Space)") {
+            Button(
+                speech.isRecording
+                    ? "停止录音并打印"
+                    : (store.settings.globalHotkeyEnabled
+                        ? "语音输入今日待办 (\(store.settings.globalHotkey.displaySymbols))"
+                        : "语音输入今日待办")
+            ) {
                 store.toggleVoiceRecording()
             }
             Button("AI 一键整理当前待办") {
