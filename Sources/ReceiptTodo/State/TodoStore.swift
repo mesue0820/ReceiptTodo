@@ -907,6 +907,10 @@ final class TodoStore: ObservableObject {
             receipt.items[idx].reminderDismissed = false
         } else {
             receipt.items[idx].title = trimmed
+            // If user deleted the pre-filled time prefix while editing, clear the schedule cleanly
+            receipt.items[idx].scheduledMinutes = nil
+            receipt.items[idx].timeHint = nil
+            receipt.items[idx].reminderDismissed = false
         }
         persistReceipt()
         evaluateReminders(allowAlert: false)

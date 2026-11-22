@@ -1421,6 +1421,7 @@ private struct TodoRowView: View {
     let onDelete: () -> Void
 
     @State private var isHovering = false
+    @FocusState private var isEditFieldFocused: Bool
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -1432,16 +1433,48 @@ private struct TodoRowView: View {
             .buttonStyle(.plain)
 
             if isEditing {
-                TextField("", text: $editingDraft)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13.5))
-                    .foregroundColor(ReceiptTheme.ink)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 3)
-                    .background(Color.white)
-                    .cornerRadius(4)
-                    .onSubmit(onCommitEdit)
-                    .onExitCommand(perform: onCancelEdit)
+                HStack(spacing: 5) {
+                    TextField("修改待办内容或时间...", text: $editingDraft)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13.5))
+                        .foregroundColor(ReceiptTheme.ink)
+                        .focused($isEditFieldFocused)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3.5)
+                        .background(Color.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(ReceiptTheme.ink.opacity(0.32), lineWidth: 0.9)
+                        )
+                        .cornerRadius(4)
+                        .onSubmit(onCommitEdit)
+                        .onExitCommand(perform: onCancelEdit)
+                        .onAppear {
+                            DispatchQueue.main.async {
+                                isEditFieldFocused = true
+                            }
+                        }
+
+                    Button(action: onCommitEdit) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 20, height: 20)
+                            .background(ReceiptTheme.ink)
+                            .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+                    .help("保存修改 (Enter)")
+
+                    Button(action: onCancelEdit) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(ReceiptTheme.inkMuted)
+                            .frame(width: 18, height: 20)
+                    }
+                    .buttonStyle(.plain)
+                    .help("取消 (Esc)")
+                }
             } else {
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(item.title)
@@ -1505,6 +1538,16 @@ private struct TodoRowView: View {
                         .buttonStyle(.plain)
                         .help("移除该条时间")
                     }
+                    Button {
+                        NSApp.activate(ignoringOtherApps: true)
+                        onBeginEdit()
+                    } label: {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(ReceiptTheme.inkMuted)
+                    }
+                    .buttonStyle(.plain)
+                    .help("编辑此项内容或时间")
                     Button(action: onDelete) {
                         Image(systemName: "trash")
                             .font(.system(size: 11))
