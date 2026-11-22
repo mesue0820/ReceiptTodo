@@ -147,7 +147,9 @@ struct ReceiptCardView: View {
                 }
 
                 Group {
-                    if store.isShowingPostTearStub {
+                    if let focused = store.focusedItem {
+                        focusLockPaperStrip(focused)
+                    } else if store.isShowingPostTearStub {
                         postTearRestStubPaper
                     } else {
                         paperStripContent
@@ -158,6 +160,7 @@ struct ReceiptCardView: View {
                         Color.clear.preference(key: PaperHeightKey.self, value: geo.size.height)
                     }
                 )
+                .rotationEffect(.degrees(store.paperNudgeAngle), anchor: .top)
                 .rotationEffect(.degrees(tearTiltDegrees), anchor: .topTrailing)
                 .offset(x: tearHorizontalOffset, y: verticalFeedOffset + tearVerticalOffset)
                 .opacity(paperOpacity)
@@ -168,7 +171,7 @@ struct ReceiptCardView: View {
                     perspective: 0.45
                 )
                 .animation(.spring(response: 0.34, dampingFraction: 0.64), value: store.isPrinting)
-                .padding(.bottom, store.isShowingPostTearStub ? 16 : 76) // Runway so pull & drift never clip
+                .padding(.bottom, (store.isShowingPostTearStub || store.focusedItem != nil) ? 16 : 76)
                 .zIndex(2)
 
                 SlotContactShadow()
@@ -194,7 +197,17 @@ struct ReceiptCardView: View {
                 hasReminder: store.activeReminderItem != nil,
                 isExpanded: true,
                 isHoveringBezel: isHoveringBezel,
-                onToggleExpand: { store.collapseToSlot() },
+                isClosedForDay: store.isTodayTornOff,
+                isFocusing: store.focusedItem != nil,
+                lampStyle: store.bezelLampStyle,
+                statusLabel: nil,
+                onToggleExpand: {
+                    if store.focusedItem != nil {
+                        store.exitFocusMode()
+                    } else {
+                        store.collapseToSlot()
+                    }
+                },
                 onToggleVoice: { store.toggleVoiceRecording() },
                 onOpenSettings: { store.openSettings() }
             )
@@ -411,6 +424,92 @@ struct ReceiptCardView: View {
         }
         .padding(.horizontal, -8)
         .help("按住此处轻轻向下拉，可沿顶部齿线撕下今日小票")
+    }
+
+    // MARK: - Focus Lock Mode: High-Contrast Single-Task Black Thermal Strip
+
+    private func focusLockPaperStrip(_ item: TodoItem) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(Color(red: 0.90, green: 0.24, blue: 0.18))
+                    .frame(width: 6.5, height: 6.5)
+
+                Text("正在死磕")
+                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                    .tracking(1.0)
+                    .foregroundColor(Color.white.opacity(0.75))
+
+                if let timeLabel = item.displayTimeLabel {
+                    Text("· \(timeLabel)")
+                        .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(store.isItemDue(item) ? Color(red: 0.96, green: 0.36, blue: 0.30) : Color.white.opacity(0.60))
+                }
+
+                Spacer()
+
+                Text(store.formattedFocusElapsed)
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundColor(.white)
+            }
+            .padding(.top, 18)
+
+            Text(item.title)
+                .font(.system(size: 15.5, weight: .bold))
+                .foregroundColor(.white)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 9)
+
+            Rectangle()
+                .fill(Color.white.opacity(0.16))
+                .frame(height: 1)
+                .padding(.vertical, 11)
+
+            HStack(spacing: 12) {
+                Button {
+                    store.completeFocusedItem()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10.5, weight: .black))
+                        Text("划掉完成")
+                            .font(.system(size: 11.5, weight: .bold))
+                    }
+                    .foregroundColor(ReceiptTheme.ink)
+                    .padding(.horizontal, 12)
+                    .frame(height: 27)
+                    .background(Color.white)
+                    .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Button {
+                    store.exitFocusMode()
+                } label: {
+                    Text("退出专注")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color.white.opacity(0.62))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.bottom, 18)
+        }
+        .padding(.horizontal, 22)
+        .frame(width: paperWidth)
+        .background(
+            Color(red: 0.085, green: 0.088, blue: 0.095)
+                .clipShape(ThermalReceiptShape(topPinch: 1.6, toothWidth: 13.5, toothHeight: 6.5))
+                .shadow(color: Color.black.opacity(0.34), radius: 14, x: 0, y: 8)
+                .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 2)
+        )
+        .overlay(
+            ThermalReceiptShape(topPinch: 1.6, toothWidth: 13.5, toothHeight: 6.5)
+                .stroke(Color.white.opacity(0.08), lineWidth: 0.6)
+        )
+        .padding(.bottom, 12)
     }
 
     // MARK: - Post-Tear Serene Compact "NEXT ROLL" Stub (After Today Is Torn Off)
@@ -900,11 +999,14 @@ struct ReceiptCardView: View {
                 TodoRowView(
                     item: item,
                     isDue: store.isItemDue(item),
+                    overdueLabel: store.overdueCompactLabel(for: item),
+                    emphasizeCarryOver: store.settings.pushUrgeEnabled,
                     isViewingToday: store.isViewingActiveDay,
                     isHighlighted: store.newlyAddedIDs.contains(item.id),
                     isEditing: editingItemID == item.id,
                     editingDraft: $editingDraft,
                     onToggle: { store.toggleItem(item.id) },
+                    onFocus: { store.startFocusing(on: item) },
                     onBeginEdit: {
                         editingItemID = item.id
                         if let t = item.displayTimeLabel {
@@ -945,11 +1047,14 @@ struct ReceiptCardView: View {
                 TodoRowView(
                     item: item,
                     isDue: false,
+                    overdueLabel: nil,
+                    emphasizeCarryOver: store.settings.pushUrgeEnabled,
                     isViewingToday: store.isViewingActiveDay,
                     isHighlighted: store.newlyAddedIDs.contains(item.id),
                     isEditing: editingItemID == item.id,
                     editingDraft: $editingDraft,
                     onToggle: { store.toggleItem(item.id) },
+                    onFocus: { store.startFocusing(on: item) },
                     onBeginEdit: {
                         editingItemID = item.id
                         editingDraft = item.title
@@ -1213,15 +1318,21 @@ struct ReceiptCardView: View {
 
     private var footerSection: some View {
         VStack(spacing: 12) {
-            // Totals row
-            HStack {
-                Text("TOTAL")
-                    .font(.system(size: 11.5, weight: .black, design: .monospaced))
-                    .foregroundColor(ReceiptTheme.ink)
-                Spacer()
-                Text("\(store.receipt.doneCount) / \(store.receipt.totalCount) DONE")
-                    .font(.system(size: 11.5, weight: .bold, design: .monospaced))
-                    .foregroundColor(store.receipt.isAllDone ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary)
+            // Totals row + optional retro thermal progress bar & UNPAID/PAID closure stamp
+            VStack(spacing: 7) {
+                HStack {
+                    Text("TOTAL")
+                        .font(.system(size: 11.5, weight: .black, design: .monospaced))
+                        .foregroundColor(ReceiptTheme.ink)
+                    Spacer()
+                    Text("\(store.receipt.doneCount) / \(store.receipt.totalCount) DONE")
+                        .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(store.receipt.isAllDone ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary)
+                }
+
+                if store.settings.pushUrgeEnabled && store.isViewingActiveDay && !store.receipt.items.isEmpty {
+                    ThermalProgressBarView(done: store.receipt.doneCount, total: store.receipt.totalCount)
+                }
             }
 
             if store.receipt.isAllDone {
@@ -1407,12 +1518,15 @@ private struct InvertedThermalReminderStrip: View {
 private struct TodoRowView: View {
     let item: TodoItem
     let isDue: Bool
+    let overdueLabel: String?
+    let emphasizeCarryOver: Bool
     let isViewingToday: Bool
     let isHighlighted: Bool
     let isEditing: Bool
     @Binding var editingDraft: String
 
     let onToggle: () -> Void
+    let onFocus: () -> Void
     let onBeginEdit: () -> Void
     let onCommitEdit: () -> Void
     let onCancelEdit: () -> Void
@@ -1488,21 +1602,28 @@ private struct TodoRowView: View {
                     if let timeLabel = item.displayTimeLabel {
                         DottedLeaderLine()
                             .layoutPriority(0)
-                        Text(timeLabel)
-                            .font(.system(size: 11.5, weight: (isDue && !item.isDone) ? .bold : .medium, design: .monospaced))
-                            .foregroundColor(
-                                item.isDone
-                                    ? ReceiptTheme.inkMuted
-                                    : (isDue ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary)
-                            )
-                            .fixedSize()
-                            .layoutPriority(2)
-                            .help("双击可修改时间，悬停可移除时间")
+                        HStack(spacing: 3.5) {
+                            Text(timeLabel)
+                                .font(.system(size: 11.5, weight: (isDue && !item.isDone) ? .bold : .medium, design: .monospaced))
+                                .foregroundColor(
+                                    item.isDone
+                                        ? ReceiptTheme.inkMuted
+                                        : (isDue ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary)
+                                )
+                            if let overdue = overdueLabel, !item.isDone {
+                                Text(overdue)
+                                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                    .foregroundColor(ReceiptTheme.stampRed)
+                            }
+                        }
+                        .fixedSize()
+                        .layoutPriority(2)
+                        .help("悬停点编辑可修改时间，或移除时间")
                     } else if item.carryOverDays > 0 && !item.isDone {
                         Spacer(minLength: 4)
                         Text("+\(item.carryOverDays)D")
-                            .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                            .foregroundColor(ReceiptTheme.inkMuted)
+                            .font(.system(size: 9.5, weight: emphasizeCarryOver ? .bold : .semibold, design: .monospaced))
+                            .foregroundColor(emphasizeCarryOver ? ReceiptTheme.accentWarm : ReceiptTheme.inkMuted)
                             .help("从前 \(item.carryOverDays) 天顺延过来的待办")
                     } else {
                         Spacer(minLength: 4)
@@ -1528,6 +1649,15 @@ private struct TodoRowView: View {
                         }
                         .buttonStyle(.plain)
                         .help("顺延到今日小票")
+                    }
+                    if isViewingToday && !item.isDone {
+                        Button(action: onFocus) {
+                            Image(systemName: "scope")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(ReceiptTheme.inkSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .help("盯紧这项（进入单条黑条死磕模式）")
                     }
                     if item.displayTimeLabel != nil {
                         Button(action: onClearTime) {

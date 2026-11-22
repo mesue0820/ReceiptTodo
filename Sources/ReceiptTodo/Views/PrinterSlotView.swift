@@ -131,6 +131,13 @@ struct PrinterSlotBackLayer: View {
     }
 }
 
+enum BezelLampStyle: Equatable {
+    case calmGreen
+    case openAmberPulse
+    case urgentRedPulse
+    case standbyDim
+}
+
 /// Layer 3 (Front, top half ONLY): Sits above y = slotCenterY so the emerging paper
 /// passes cleanly underneath the upper metallic lip while draping OVER the lower metallic lip.
 struct PrinterSlotUpperOverlay: View {
@@ -141,6 +148,9 @@ struct PrinterSlotUpperOverlay: View {
     let isExpanded: Bool
     let isHoveringBezel: Bool
     var isClosedForDay: Bool = false
+    var isFocusing: Bool = false
+    var lampStyle: BezelLampStyle = .calmGreen
+    var statusLabel: String? = nil
 
     let onToggleExpand: () -> Void
     let onToggleVoice: () -> Void
@@ -148,15 +158,46 @@ struct PrinterSlotUpperOverlay: View {
 
     @State private var ledBlink: Bool = false
 
-    private var isLedActive: Bool {
-        isRecording || isPrinting || hasReminder
+    private var isLedPulsing: Bool {
+        if isRecording || isPrinting || hasReminder || isFocusing { return true }
+        return lampStyle == .openAmberPulse || lampStyle == .urgentRedPulse
     }
 
     private var ledColor: Color {
-        if isRecording || hasReminder { return ReceiptTheme.stampRed }
+        if isRecording || hasReminder || isFocusing { return ReceiptTheme.stampRed }
         if isPrinting { return Color(red: 0.14, green: 0.82, blue: 0.42) }
         if isClosedForDay { return Color(white: 0.52) }
-        return Color(red: 0.28, green: 0.72, blue: 0.46)
+        switch lampStyle {
+        case .calmGreen: return Color(red: 0.24, green: 0.72, blue: 0.44)
+        case .openAmberPulse: return Color(red: 0.90, green: 0.46, blue: 0.14)
+        case .urgentRedPulse: return ReceiptTheme.stampRed
+        case .standbyDim: return Color(white: 0.52)
+        }
+    }
+
+    private var pulseDuration: Double {
+        if isRecording || hasReminder { return 0.50 }
+        if lampStyle == .urgentRedPulse || isFocusing { return 0.75 }
+        return 1.25
+    }
+
+    private var effectiveStatusText: (text: String, color: Color)? {
+        if isRecording {
+            return ("REC", ReceiptTheme.stampRed)
+        }
+        if isPrinting {
+            return ("PRINTING", Color(white: 0.24))
+        }
+        if isFocusing {
+            return ("FOCUSING", ReceiptTheme.stampRed)
+        }
+        if let label = statusLabel, !label.isEmpty {
+            let color: Color = (lampStyle == .urgentRedPulse)
+                ? ReceiptTheme.stampRed
+                : Color(white: 0.26)
+            return (label, color)
+        }
+        return nil
     }
 
     var body: some View {
@@ -169,22 +210,22 @@ struct PrinterSlotUpperOverlay: View {
                     onToggleExpand()
                 }
 
-            HStack(spacing: 6) {
+            HStack(spacing: 5.5) {
                 Circle()
                     .fill(ledColor)
-                    .frame(width: 4.5, height: 4.5)
-                    .shadow(color: ledColor.opacity(0.9), radius: isLedActive ? 3.5 : 1.0)
-                    .opacity(isLedActive ? (ledBlink ? 1.0 : 0.25) : 0.85)
+                    .frame(width: 4.8, height: 4.8)
+                    .shadow(color: ledColor.opacity(0.9), radius: isLedPulsing ? 3.5 : 1.0)
+                    .opacity(isLedPulsing ? (ledBlink ? 1.0 : 0.30) : 0.88)
                     .onAppear {
-                        if isLedActive {
-                            withAnimation(.easeInOut(duration: 0.55).repeatForever(autoreverses: true)) {
+                        if isLedPulsing {
+                            withAnimation(.easeInOut(duration: pulseDuration).repeatForever(autoreverses: true)) {
                                 ledBlink = true
                             }
                         }
                     }
-                    .onChange(of: isLedActive) { _, active in
+                    .onChange(of: isLedPulsing) { _, active in
                         if active {
-                            withAnimation(.easeInOut(duration: 0.45).repeatForever(autoreverses: true)) {
+                            withAnimation(.easeInOut(duration: pulseDuration).repeatForever(autoreverses: true)) {
                                 ledBlink = true
                             }
                         } else {
@@ -192,19 +233,15 @@ struct PrinterSlotUpperOverlay: View {
                         }
                     }
 
-                if isPrinting {
-                    Text("PRINTING")
-                        .font(.system(size: 7.5, weight: .bold, design: .monospaced))
-                        .tracking(0.8)
-                        .foregroundColor(Color(white: 0.25))
-                } else if isRecording {
-                    Text("REC")
-                        .font(.system(size: 7.5, weight: .black, design: .monospaced))
-                        .tracking(0.8)
-                        .foregroundColor(ReceiptTheme.stampRed)
+                if let status = effectiveStatusText {
+                    Text(status.text)
+                        .font(.system(size: 7.8, weight: .bold, design: .monospaced))
+                        .tracking(0.55)
+                        .foregroundColor(status.color)
+                        .lineLimit(1)
                 }
 
-                Spacer()
+                Spacer(minLength: 4)
 
                 HStack(spacing: 5) {
                     Button(action: onToggleVoice) {

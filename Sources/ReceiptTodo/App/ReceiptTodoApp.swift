@@ -48,14 +48,17 @@ private enum PreviewRenderer {
                 TodoItem(title: "买猫粮和冰美式咖啡", isDone: false, source: .voice)
             ]
         )
-        store.currentMinutesOfDay = 12 * 60
+        store.currentMinutesOfDay = 12 * 60 + 25 // 12:25 so 12:00 shows +25m overdue!
         store.activeReminderItemID = lunchID
         store.streakDays = 7
+        store.settings.pushUrgeEnabled = true
+        store.settings.closingCountdownEnabled = true
+        store.settings.closingMinutesOfDay = 18 * 60 + 30 // OPEN · 距打烊 6h5m
 
         let url = URL(fileURLWithPath: dir, isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
 
-        // 1. Expanded receipt with Design A inverted thermal reminder strip + subtle bottom-hem pull cue
+        // 1. Expanded receipt with bezel OPEN/closing lamp, overdue +25m, progress bar & UNPAID stamp
         store.isTodayTornOff = false
         store.isExpanded = true
         store.paperReveal = 1.0
@@ -67,9 +70,21 @@ private enum PreviewRenderer {
             view: ZStack {
                 Color(red: 0.89, green: 0.89, blue: 0.90)
                 ReceiptCardView(store: store, speech: store.speechService)
-            }.frame(width: 420, height: 860),
+            }.frame(width: 420, height: 910),
             to: url.appendingPathComponent("preview_expanded.png")
         )
+
+        // 1b. Focus Lock Mode (single-task inverted carbon-black thermal strip)
+        store.focusedItemID = store.receipt.items[2].id
+        store.focusElapsedSeconds = 18 * 60 + 42
+        save(
+            view: ZStack {
+                Color(red: 0.89, green: 0.89, blue: 0.90)
+                ReceiptCardView(store: store, speech: store.speechService)
+            }.frame(width: 420, height: 225),
+            to: url.appendingPathComponent("preview_focus_lock.png")
+        )
+        store.focusedItemID = nil
 
         // 2. Mid-tear progressive left-to-right unzip preview
         store.tearPullDistance = 74

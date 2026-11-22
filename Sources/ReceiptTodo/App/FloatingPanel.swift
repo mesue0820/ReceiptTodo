@@ -188,6 +188,11 @@ final class FloatingPanelController: NSObject, NSWindowDelegate {
             return collapsedSize
         }
 
+        // Single-task Focus Lock Mode: compact high-contrast black slip hanging from the metal slot!
+        if store.focusedItem != nil {
+            return CGSize(width: expandedWidth, height: 196)
+        }
+
         // Right after tearing off today: compact serene NEXT ROLL stub (~252pt) instead of a huge blank form!
         if store.isShowingPostTearStub {
             return CGSize(width: expandedWidth, height: 252)
@@ -209,11 +214,17 @@ final class FloatingPanelController: NSObject, NSWindowDelegate {
         let recordingHeight: CGFloat = (store.speechService.isRecording || store.isParsingVoice) ? 112 : 0
         let aiErrorHeight: CGFloat = store.aiErrorBanner == nil ? 0 : 122
         let toastHeight: CGFloat = store.toastMessage == nil ? 0 : 40
-        let stampHeight: CGFloat = store.receipt.isAllDone ? 34 : 0
+        let pushFooterHeight: CGFloat = {
+            if store.receipt.isAllDone { return 48 }
+            if store.settings.pushUrgeEnabled && store.isViewingActiveDay && !store.receipt.items.isEmpty {
+                return 22
+            }
+            return 0
+        }()
 
         let totalHeight = min(
-            max(baseHeight + listHeight + reminderHeight + rolloverHeight + recordingHeight + aiErrorHeight + toastHeight + stampHeight, 560),
-            940
+            max(baseHeight + listHeight + reminderHeight + rolloverHeight + recordingHeight + aiErrorHeight + toastHeight + pushFooterHeight, 560),
+            960
         )
         return CGSize(width: expandedWidth, height: totalHeight)
     }

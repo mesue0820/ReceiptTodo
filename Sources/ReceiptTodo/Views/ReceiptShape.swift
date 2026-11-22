@@ -355,3 +355,46 @@ struct StampBadgeView: View {
         .transition(.scale(scale: 1.38).combined(with: .opacity))
     }
 }
+
+/// Retro monospace thermal-receipt block progress bar (`[██████░░░░] 60%`)
+struct ThermalProgressBarView: View {
+    let done: Int
+    let total: Int
+
+    private var ratio: Double {
+        guard total > 0 else { return 0 }
+        return min(1.0, max(0.0, Double(done) / Double(total)))
+    }
+
+    private var filledBlocks: Int {
+        Int(round(ratio * 10.0))
+    }
+
+    private var percent: Int {
+        Int(round(ratio * 100.0))
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            HStack(spacing: 2.2) {
+                ForEach(0..<10, id: \.self) { idx in
+                    let isFilled = idx < filledBlocks
+                    Rectangle()
+                        .fill(
+                            isFilled
+                                ? (done == total ? ReceiptTheme.stampRed : ReceiptTheme.ink)
+                                : ReceiptTheme.ink.opacity(0.13)
+                        )
+                        .frame(height: 5.5)
+                        .cornerRadius(0.8)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            Text("\(percent)%")
+                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .foregroundColor(done == total ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary)
+                .frame(width: 34, alignment: .trailing)
+        }
+    }
+}

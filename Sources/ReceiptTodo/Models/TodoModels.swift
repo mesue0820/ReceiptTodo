@@ -402,6 +402,11 @@ struct AppSettings: Codable, Equatable {
     var globalHotkey: GlobalHotkeyConfig = .defaultOptionSpace
     var preferOnDeviceSpeech: Bool = false
 
+    // Push / Accountability preferences (UNPAID stamp, progress bar, overdue nudge, closing-time lamp)
+    var pushUrgeEnabled: Bool = true
+    var closingCountdownEnabled: Bool = true
+    var closingMinutesOfDay: Int = 21 * 60 // Default 21:00
+
     var hasAPIKey: Bool {
         !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -438,7 +443,10 @@ struct AppSettings: Codable, Equatable {
         soundEnabled: Bool = true,
         globalHotkeyEnabled: Bool = true,
         globalHotkey: GlobalHotkeyConfig = .defaultOptionSpace,
-        preferOnDeviceSpeech: Bool = false
+        preferOnDeviceSpeech: Bool = false,
+        pushUrgeEnabled: Bool = true,
+        closingCountdownEnabled: Bool = true,
+        closingMinutesOfDay: Int = 21 * 60
     ) {
         self.speechEngine = speechEngine
         self.doubaoAPIKey = doubaoAPIKey
@@ -454,6 +462,9 @@ struct AppSettings: Codable, Equatable {
         self.globalHotkeyEnabled = globalHotkeyEnabled
         self.globalHotkey = globalHotkey
         self.preferOnDeviceSpeech = preferOnDeviceSpeech
+        self.pushUrgeEnabled = pushUrgeEnabled
+        self.closingCountdownEnabled = closingCountdownEnabled
+        self.closingMinutesOfDay = closingMinutesOfDay
     }
 
     init(from decoder: Decoder) throws {
@@ -472,5 +483,8 @@ struct AppSettings: Codable, Equatable {
         globalHotkeyEnabled = try c.decodeIfPresent(Bool.self, forKey: .globalHotkeyEnabled) ?? true
         globalHotkey = try c.decodeIfPresent(GlobalHotkeyConfig.self, forKey: .globalHotkey) ?? .defaultOptionSpace
         preferOnDeviceSpeech = try c.decodeIfPresent(Bool.self, forKey: .preferOnDeviceSpeech) ?? false
+        pushUrgeEnabled = try c.decodeIfPresent(Bool.self, forKey: .pushUrgeEnabled) ?? true
+        closingCountdownEnabled = try c.decodeIfPresent(Bool.self, forKey: .closingCountdownEnabled) ?? true
+        closingMinutesOfDay = try c.decodeIfPresent(Int.self, forKey: .closingMinutesOfDay) ?? (21 * 60)
     }
 }

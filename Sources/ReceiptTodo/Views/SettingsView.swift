@@ -256,6 +256,7 @@ struct SettingsView: View {
 
                     Toggle("始终置顶悬浮在其他窗口上方", isOn: $draft.alwaysOnTop)
                     Toggle("开启打印机出纸与划掉音效", isOn: $draft.soundEnabled)
+                    Toggle("开启未完成催促感（进度条 / 呼吸灯 / 逾期计时与轻抖）", isOn: $draft.pushUrgeEnabled)
 
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 8) {
@@ -351,7 +352,7 @@ struct SettingsView: View {
             }
             .padding(18)
         }
-        .frame(width: 500, height: 635)
+        .frame(width: 500, height: 645)
         .alert("确认清空今日全部待办？", isPresented: $showClearAllConfirm) {
             Button("取消", role: .cancel) {}
             Button("全部清除", role: .destructive) {

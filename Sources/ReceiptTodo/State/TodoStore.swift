@@ -63,6 +63,17 @@ final class TodoStore: ObservableObject {
     @Published var isTearingOff: Bool = false
     var isRenderingStaticPreview: Bool = false
 
+    // Focus Lock Mode (single-task inverted black strip) & gentle overdue sway
+    @Published var focusedItemID: UUID? {
+        didSet {
+            if oldValue != focusedItemID {
+                onWindowLayoutChange?(true)
+            }
+        }
+    }
+    @Published var focusElapsedSeconds: Int = 0
+    @Published var paperNudgeAngle: Double = 0.0
+
     @Published var activeReminderItemID: UUID? {
         didSet {
             if oldValue != activeReminderItemID {
@@ -87,9 +98,12 @@ final class TodoStore: ObservableObject {
     private let sound = ThermalSoundEngine.shared
     private var cancellables = Set<AnyCancellable>()
     private var clockTimer: Timer?
+    private var focusTimer: Timer?
+    private var lastNudgeDate: Date?
     private var toastTask: Task<Void, Never>?
     private var printTask: Task<Void, Never>?
     private var tearTask: Task<Void, Never>?
+    private var nudgeTask: Task<Void, Never>?
     private var lastTearHapticStage: Int = 0
     private var lastTearSoundStep: Int = 0
 
@@ -180,6 +194,126 @@ final class TodoStore: ObservableObject {
         return mins <= currentMinutesOfDay
     }
 
+    var remainingCount: Int {
+        max(0, receipt.totalCount - receipt.doneCount)
+    }
+
+    var focusedItem: TodoItem? {
+        guard let id = focusedItemID else { return nil }
+        return receipt.items.first { $0.id == id && !$0.isDone }
+    }
+
+    var formattedFocusElapsed: String {
+        let hrs = focusElapsedSeconds / 3600
+        let mins = (focusElapsedSeconds % 3600) / 60
+        let secs = focusElapsedSeconds % 60
+        if hrs > 0 {
+            return String(format: "%02d:%02d:%02d", hrs, mins, secs)
+        }
+        return String(format: "%02d:%02d", mins, secs)
+    }
+
+    /// Minutes past scheduled time (returns >= 1 when genuinely overdue on active today).
+    func overdueMinutes(for item: TodoItem) -> Int? {
+        guard isViewingToday, !isTodayTornOff, !item.isDone, let mins = item.scheduledMinutes else { return nil }
+        let delta = currentMinutesOfDay - mins
+        return delta >= 1 ? delta : nil
+    }
+
+    func overdueCompactLabel(for item: TodoItem) -> String? {
+        guard settings.pushUrgeEnabled, let mins = overdueMinutes(for: item) else { return nil }
+        if mins >= 60 {
+            let h = mins / 60
+            let m = mins % 60
+            return m == 0 ? "+\(h)h" : "+\(h)h\(m)m"
+        }
+        return "+\(mins)m"
+    }
+
+    var hasOverdueItem: Bool {
+        guard isViewingToday, !isTodayTornOff else { return false }
+        return timedItems.contains { overdueMinutes(for: $0) != nil }
+    }
+
+    var bezelLampStyle: BezelLampStyle {
+        if isTodayTornOff || !isViewingToday {
+            return .standbyDim
+        }
+        if receipt.items.isEmpty || receipt.isAllDone {
+            return .calmGreen
+        }
+        if settings.pushUrgeEnabled && hasOverdueItem {
+            return .urgentRedPulse
+        }
+        if settings.pushUrgeEnabled && remainingCount > 0 {
+            return .openAmberPulse
+        }
+        return .calmGreen
+    }
+
+    // MARK: - Focus Lock Mode (Single-Task Black Strip)
+
+    func startFocusing(on item: TodoItem) {
+        guard !item.isDone else { return }
+        if speechService.isRecording {
+            speechService.cancelRecording()
+        }
+        focusTimer?.invalidate()
+        focusedItemID = item.id
+        focusElapsedSeconds = 0
+        isExpanded = true
+        paperReveal = 1.0
+        onWindowLayoutChange?(true)
+        sound.playShortLineFeed(enabled: settings.soundEnabled)
+
+        focusTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.focusedItemID != nil else { return }
+                self.focusElapsedSeconds += 1
+            }
+        }
+    }
+
+    func exitFocusMode() {
+        focusTimer?.invalidate()
+        focusTimer = nil
+        focusedItemID = nil
+        focusElapsedSeconds = 0
+        onWindowLayoutChange?(true)
+    }
+
+    func completeFocusedItem() {
+        guard let id = focusedItemID else { return }
+        focusTimer?.invalidate()
+        focusTimer = nil
+        focusedItemID = nil
+        focusElapsedSeconds = 0
+        toggleItem(id)
+    }
+
+    /// Subtle 0.48s pendulum paper sway when an overdue task remains unchecked (peripheral nudge, never intrusive).
+    func triggerGentlePaperNudge() {
+        guard isExpanded, !isTearingOff, focusedItemID == nil, !isShowingPostTearStub else { return }
+        nudgeTask?.cancel()
+        nudgeTask = Task { [weak self] in
+            guard let self else { return }
+            let frames: [(Double, Double)] = [
+                (1.25, 0.11),
+                (-0.95, 0.12),
+                (0.55, 0.11),
+                (-0.22, 0.09),
+                (0.0, 0.10)
+            ]
+            for (angle, dur) in frames {
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: dur)) {
+                    self.paperNudgeAngle = angle
+                }
+                try? await Task.sleep(nanoseconds: UInt64(dur * 1_000_000_000))
+            }
+        }
+    }
+
     init() {
         let today = Date()
         let todayKey = DailyReceipt.dateKey(for: today)
@@ -232,8 +366,21 @@ final class TodoStore: ObservableObject {
                 self.checkDateRollover()
                 self.currentMinutesOfDay = TimeParser.currentMinutesOfDay()
                 self.evaluateReminders(allowAlert: true)
+                self.evaluateOverdueNudge()
             }
         }
+    }
+
+    private func evaluateOverdueNudge() {
+        guard settings.pushUrgeEnabled, isViewingToday, !isTodayTornOff, isExpanded, focusedItemID == nil else { return }
+        let hasLongOverdue = timedItems.contains { (overdueMinutes(for: $0) ?? 0) >= 10 }
+        guard hasLongOverdue else { return }
+        let now = Date()
+        if let last = lastNudgeDate, now.timeIntervalSince(last) < 600 {
+            return
+        }
+        lastNudgeDate = now
+        triggerGentlePaperNudge()
     }
 
     func checkDateRollover() {
@@ -1230,6 +1377,7 @@ final class TodoStore: ObservableObject {
         let topChanged = settings.alwaysOnTop != newSettings.alwaysOnTop
         let hotkeyChanged = settings.globalHotkeyEnabled != newSettings.globalHotkeyEnabled
             || settings.globalHotkey != newSettings.globalHotkey
+        let layoutChanged = settings.pushUrgeEnabled != newSettings.pushUrgeEnabled
         settings = newSettings
         storage.saveSettings(newSettings)
         if topChanged {
@@ -1237,6 +1385,9 @@ final class TodoStore: ObservableObject {
         }
         if hotkeyChanged {
             onGlobalHotkeyChange?(newSettings.globalHotkeyEnabled, newSettings.globalHotkey)
+        }
+        if layoutChanged {
+            onWindowLayoutChange?(true)
         }
     }
 

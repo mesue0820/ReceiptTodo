@@ -40,6 +40,9 @@ struct CollapsedPillView: View {
                             .padding(.horizontal, 12)
                             .padding(.top, isHovering ? 13 : 9)
                         } else {
+                            let isUrgentRemaining = store.settings.pushUrgeEnabled
+                                && store.remainingCount > 0
+                                && store.hasOverdueItem
                             HStack(spacing: 6) {
                                 Text("TODAY")
                                     .font(.system(size: 10, weight: .black, design: .monospaced))
@@ -47,13 +50,17 @@ struct CollapsedPillView: View {
                                 Text("\(store.receipt.doneCount)/\(store.receipt.totalCount)")
                                     .font(.system(size: 10, weight: .black, design: .monospaced))
                                     .foregroundColor(
-                                        store.receipt.isAllDone ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary
+                                        (store.receipt.isAllDone || isUrgentRemaining) ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary
                                     )
                                 Spacer(minLength: 2)
                                 if let nextTimed = store.nextUpcomingTimedItem, let label = nextTimed.displayTimeLabel {
                                     Text(label)
                                         .font(.system(size: 10, weight: .bold, design: .monospaced))
                                         .foregroundColor(store.isItemDue(nextTimed) ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary)
+                                } else if isUrgentRemaining {
+                                    Text("剩\(store.remainingCount)项")
+                                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                        .foregroundColor(ReceiptTheme.stampRed)
                                 } else {
                                     Image(systemName: "chevron.compact.down")
                                         .font(.system(size: 11, weight: .bold))
@@ -92,7 +99,10 @@ struct CollapsedPillView: View {
                 hasReminder: store.activeReminderItem != nil && !store.isTodayTornOff,
                 isExpanded: false,
                 isHoveringBezel: isHovering,
-                isClosedForDay: false,
+                isClosedForDay: store.isTodayTornOff,
+                isFocusing: store.focusedItem != nil,
+                lampStyle: store.bezelLampStyle,
+                statusLabel: nil,
                 onToggleExpand: { store.expandFromSlot() },
                 onToggleVoice: { store.toggleVoiceRecording() },
                 onOpenSettings: { store.openSettings() }
