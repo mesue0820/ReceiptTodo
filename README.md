@@ -1,94 +1,139 @@
-# ReceiptTodo · 小票待办
-
 <p align="center">
-  <strong>一款常驻 macOS 桌面角落、像真实热敏纸小票打印机一样的语音打卡 To-Do List</strong>
+  <img src="docs/hero-banner.png" width="100%" alt="ReceiptTodo 小票待办 — 把每天要做的事，像小票一样挂在桌角" />
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/macOS-14.0%2B-111111?style=flat-square&logo=apple" alt="macOS 14+" />
-  <img src="https://img.shields.io/badge/Swift-5.10-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 5.10" />
-  <img src="https://img.shields.io/badge/License-MIT-2ea44f?style=flat-square" alt="MIT License" />
+  一款常驻 Mac 桌面角落的热敏小票待办工具 —— 随口说、自动排、到点提醒，晚上亲手撕下来变成打卡图。
 </p>
 
-把每天要做的事像超市小票一样打印并挂在屏幕角落：随手按快捷键说几句话，AI 自动去废话、纠错、拆分成干净条目并提取时间；到点反白黑条醒目提醒；每划掉一项都有真实钢笔划纸声；一天结束时，**沿着锯齿线伴随真实撕纸声把今天撕下来**——直接生成一张可转发朋友圈/微信的高清打卡图，机器则切出清爽的明日新纸头。
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14.0%2B-1F2328?style=flat-square&labelColor=57606A" alt="macOS 14+" />
+  <img src="https://img.shields.io/badge/芯片-Apple%20Silicon-1F2328?style=flat-square&labelColor=57606A" alt="Apple Silicon" />
+  <img src="https://img.shields.io/badge/体积-853%20KB-1F2328?style=flat-square&labelColor=57606A" alt="853 KB" />
+  <img src="https://img.shields.io/badge/开源协议-MIT-1F2328?style=flat-square&labelColor=57606A" alt="MIT License" />
+</p>
+
+<br>
+
+<a id="download"></a>
+<h3 align="center">下载 ReceiptTodo</h3>
+
+<p align="center">
+  免费开源 · 仅 853 KB · 无需注册账号，解压即用
+</p>
+
+<p align="center">
+  <a href="https://github.com/mesue0820/ReceiptTodo/releases/latest">
+    <img src="https://img.shields.io/badge/下载_macOS_版本-v1.0.0_(.zip)-111111?style=for-the-badge&logo=apple&logoColor=white&labelColor=3A3F47" alt="下载 macOS 版本" />
+  </a>
+</p>
+
+<p align="center">
+  <sub>适用于 M 系列芯片（Apple Silicon）macOS 14.0 及以上 · 首次打开若被系统提示“无法验证开发者”，看下方 <a href="#三步上手">三步上手</a> 一行解锁</sub>
+</p>
+
+<br>
+
+<h3 align="center">说句话，把今天打印出来</h3>
+
+<p align="center">
+  按一下快捷键随口说出今天要做的事，自动去掉口语废话、拆成干净条目并按时间排好队；到点自动弹出黑条提醒。
+</p>
+
+<p align="center">
+  <img src="docs/feature-voice-reminder.png" width="100%" alt="语音输入自动整理并打印待办与到点黑条提醒" />
+</p>
+
+<br>
+
+<h3 align="center">一天结束，亲手把今天撕下来</h3>
+
+<p align="center">
+  拉住小票底部的锯齿边缘轻轻下拉，伴随真实撕纸声沿齿线撕开——直接弹出高清打卡图发微信/朋友圈，桌角收净成明日新纸头。
+</p>
+
+<p align="center">
+  <img src="docs/feature-tear-share.png" width="100%" alt="下拉沿齿线撕开、直出无边框打卡图、切换清爽明日新纸头" />
+</p>
+
+<br>
+
+<h3 align="center">藏在角落不挡视线，没做完的明天接得住</h3>
+
+<p align="center">
+  平时收起成一条拉丝金属出纸槽，扫一眼就知进度与下一场提醒；没做完的事跨周末也不会丢，第二天一键挑选顺延。
+</p>
+
+<p align="center">
+  <img src="docs/feature-corner-carryover.png" width="100%" alt="桌面角落收起态与跨周末结余顺延" />
+</p>
+
+<br>
 
 ---
 
-## 视觉预览
+## 你能用它做什么
 
-<table>
-  <tr>
-    <td align="center" width="33%">
-      <img src="docs/preview_expanded.png" width="260" alt="日常待办小票与定时提醒" /><br/>
-      <sub><b>日常待办 & 定时反白提醒条</b></sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/preview_tearing.png" width="260" alt="沿齿线渐进撕下今日小票" /><br/>
-      <sub><b>边拉边响 · 沿齿线渐进撕下</b></sub>
-    </td>
-    <td align="center" width="33%">
-      <img src="docs/preview_share_poster.png" width="260" alt="撕下直出的无边框高清打卡图" /><br/>
-      <sub><b>撕下直出 · 3x 高清打卡分享图</b></sub>
-    </td>
-  </tr>
-  <tr>
-    <td align="center" colspan="2">
-      <img src="docs/preview_post_tear_stub.png" width="300" alt="撕完后清爽的明日新纸头" /><br/>
-      <sub><b>撕完变清爽 · NEXT ROLL 明日新纸头（可一键写明天 / 恢复今日）</b></sub>
-    </td>
-    <td align="center">
-      <img src="docs/preview_collapsed.png" width="230" alt="角落收起态" /><br/>
-      <sub><b>收起态 · 角落拉丝金属出纸槽</b></sub>
-    </td>
-  </tr>
-</table>
+- **随时开口记待办**：按下 `Option + Space` 随口说几句，自动整理成清爽待办；也可以直接说「把吃午饭划掉」「把周报改到下午 4 点」。
+- **像真纸一样的打卡手感**：打勾伴随真实钢笔划纸声与红线核销；全部完成后盖上红色 `PAID · 今日已核销` 印章，自动记录连续打卡天数。
+- **到点醒目提醒**：有时间的事项按先后排在上方，到点顶部浮现高对比黑条，一键划掉或顺延 10 分钟。
+- **撕票出图发朋友圈**：晚上亲手把今日小票撕下，直接呈现无边框 3x 高清打卡图，支持切换背景色、隐藏未完成项、一键复制发微信或隔空投送到手机。
+- **贴心收尾与复原**：撕完后小票收短成清爽的 `NEXT ROLL` 明日新纸头；手滑撕早了随时一键恢复，也能翻看任意一天的历史小票或一键复制已完成事项写日报。
 
 ---
 
-## 核心特性
+## 三步上手
 
-### 1. 拟物拉丝金属出纸槽 & 桌面轻量悬浮
-- 原生 `SwiftUI + AppKit NSPanel` 打造，内存极轻、置顶悬浮、跨桌面 Space 跟随，勾选任务不抢占当前工作窗口焦点。
-- 支持自由拖拽并记住位置，**自动识别屏幕左/右半区**，收起时向所在一侧收拢成紧凑金属槽，只露出一截锯齿小纸头显示进度与下一条提醒时间。
-- 全部采用真实热敏打印机录音、钢笔划纸声与撕纸采样，拒绝廉价电子蜂鸣。
-
-### 2. 每日语音输入 → AI 智能整理 & 语音指令
-- **双语音识别引擎**：支持 **macOS 原生中文语音识别** 与 **火山引擎豆包流式语音识别 2.0（SAUC v3）**，支持配置**自定义热词**（专有名词、产品名、人名不再听错）。
-- **多模型 AI 整理**：内置 **火山方舟 / DeepSeek / 通义千问 / Gemini / OpenAI / 自定义 OpenAI 兼容接口** 预设，自动去掉口语废话、纠正同音字、拆分复合事项、精准绑定时间（不串项）。
-- **自然语音操作**：除了新增待办，还可以直接说 *「把踢足球划掉」*、*「把封面反馈改到下午 4 点」*，或用 **`Option + Space`** 全局快捷键随时开口记录。
-
-### 3. 瑞士小票风定时提醒（Design A）
-- 有明确时间的事项按时间顺序排在上方，通过复古虚线引导线 `………… 12:00` 右对齐显示；无时间事项自然排在下方。
-- 到达约定时间后，小票顶部弹出高对比度**热敏反白黑条**提醒，支持一键 **`[ 划掉 ]`**、**`+10m` 推迟** 或忽略。
-
-### 4. 一天结束：渐进式撕票 → 无边框高清打卡图 → 明日新纸头
-- **真实手感的底部下拉撕纸**：按住小票底部锯齿边缘轻轻下拉，纸张从左向右沿齿线逐齿拉开，**撕纸声随手速实时同步响起**（配合 MacBook 触控板微震动反馈）；拉过阈值松手即清脆断开。
-- **撕完直出可传播的打卡图**：不弹繁琐设置对话框，直接浮现一张**无边框 3x 高清双锯齿打卡小票图**；底部悬浮胶囊栏支持切换 **浅灰桌面 / 深色桌面 / 透明纯纸条**、一键 **「仅展示已完成」** 隐藏未完成项，一键 **复制图片**（直贴微信）、**保存 PNG** 或 **隔空投送（AirDrop）** 到手机发朋友圈。
-- **翻篇感与反悔权兼得**：撕下后机器自动收净为短小的 **`NEXT ROLL` 明日新纸头**，点 `+ 写明天` 随时提前规划明天（未完成事项自动进入结余），点 `[ 恢复今日 ]` 或在 `<` 历史翻页中随时无损复原。
-
-### 5. 跨周末结余 & 历史翻页 & 日报导出
-- **跨周末结余顺延**：自动向前扫描最近 14 天未完成的待办（周末回来也不丢任务），支持 `[全部顺延]`、`挑选` 或 `放下`，顺延项自动带上 `+1D` 标记。
-- **历史小票翻页**：点击日期旁的 `<` `>` 随时回看往日小票、重新生成任意一天的打卡图，或一键复制已完成事项粘贴进日报/周报。
+1. **下载安装**：点击上方 **[下载 macOS 版本](https://github.com/mesue0820/ReceiptTodo/releases/latest)**，解压后把 `ReceiptTodo.app` 拖进「应用程序」文件夹。
+2. **首次打开**：由于是个人开源软件未购买苹果开发者年费签名，首次打开如果遇到系统提示“无法验证开发者”，打开 Mac 自带的「终端」粘贴运行下面一行即可正常打开：
+   ```bash
+   xattr -cr /Applications/ReceiptTodo.app && open /Applications/ReceiptTodo.app
+   ```
+3. **开始使用**：直接打字或点击语音按钮记录今天的安排；点右上角齿轮 `⚙` 可按需接入你自己的语音或 AI 整理服务（支持 DeepSeek、火山方舟、通义千问、Gemini、OpenAI 等）。
 
 ---
 
-## 下载与安装（推荐）
+## 常见问题
 
-前往本仓库右侧的 **[Releases](../../releases)** 页面，下载最新的 `ReceiptTodo-v1.0.0-macOS-arm64.zip`（适用于 Apple Silicon M 系列芯片，macOS 14.0+）：
+<details>
+<summary><b>不填 API Key 能直接用吗？</b></summary>
+<br>
 
-1. 解压后将 `ReceiptTodo.app` 拖入 **`应用程序（Applications）`** 文件夹。
-2. 由于应用采用本地 Ad-hoc 签名（未经 Apple 付费公证），首次打开若遇到 macOS 提示“无法验证开发者”或“已损坏”，在终端执行一行命令解除下载隔离属性即可正常打开：
+完全可以。不填任何 Key 也能直接打字记待办、使用 Mac 自带的中文语音识别、定时提醒、下拉撕票、生成高清打卡图和历史回看。填入 AI 大模型 Key 后，可以获得更聪明的口语去废话、热词纠错和语音指令改时间体验。
 
-```bash
-xattr -cr /Applications/ReceiptTodo.app
-open /Applications/ReceiptTodo.app
-```
+</details>
+
+<details>
+<summary><b>我的待办记录和 API Key 会上传到云端吗？</b></summary>
+<br>
+
+不会。所有待办记录与设置均仅保存在你自己的电脑本地目录（`~/Library/Application Support/ReceiptTodo/`），软件本身没有任何后端服务器或数据收集行为。只有当你主动触发语音或 AI 整理时，才会直接请求你在设置里填写的接口。
+
+</details>
+
+<details>
+<summary><b>不小心把今天的小票撕早了怎么办？</b></summary>
+<br>
+
+完全不用担心，数据不会丢失。刚弹出的打卡图下方有 `↩` 一键撤销按钮，撕完后的明日新纸头上也有 `[ 恢复今日 ]`，点一下就会把今天的小票原封不动吐回来；随时也可以点日期旁的 `<` 翻回历史记录重新生成打卡图。
+
+</details>
+
+<details>
+<summary><b>支持 Intel 芯片的旧款 Mac 吗？</b></summary>
+<br>
+
+目前预编译好的 `.zip` 安装包面向 Apple Silicon（M1/M2/M3/M4）芯片、macOS 14.0 及以上系统。如果你是 Intel Mac，展开下方「开发者从源码运行」即可在本机直接编译使用。
+
+</details>
 
 ---
 
-## 从源码构建
+## 开发者从源码运行
 
-仅需安装 macOS Command Line Tools（Swift 5.10+），无需完整 Xcode：
+<details>
+<summary><b>点击展开：本地编译与打包命令（无需 Xcode，仅需 Swift 5.10+）</b></summary>
+<br>
 
 ```bash
 git clone https://github.com/mesue0820/ReceiptTodo.git
@@ -104,24 +149,10 @@ open build/ReceiptTodo.app
 ./Scripts/package_release.sh v1.0.0
 ```
 
----
-
-## 配置语音与 AI 引擎
-
-点击小票顶部金属槽右侧的齿轮图标 `⚙`（或顶部菜单栏小票图标 → `设置 API Key 与偏好...`）：
-1. **语音识别引擎**：默认开箱即用 macOS 原生中文识别；如需更高准确率与热词纠错，可切换为 **豆包流式语音识别 2.0** 并填入 API Key 及自定义热词。
-2. **AI 待办整理引擎**：选择你常用的大模型服务商（火山方舟 / DeepSeek / 通义千问 / Gemini / OpenAI 或自定义），粘贴 API Key 并点击「测试连接」。
+</details>
 
 ---
 
-## 数据与隐私
-
-- **纯本地存储**：所有每日小票记录与个人 API Key 配置均只保存在本机 `~/Library/Application Support/ReceiptTodo/`（配置文件权限 `0600`），应用本身无任何后端服务器或统计上报。
-- 只有当你主动触发语音识别或 AI 整理时，才会直接向你在设置中配置的接口发送请求。
-
----
-
-## 致谢与许可
-
-- 打印机出纸与撕纸音效裁剪自 Freesound CC0 Public Domain 真实热敏打印机录音，叠加 macOS 原生系统音效。
-- 本项目基于 [MIT License](LICENSE) 开源。
+<p align="center">
+  <sub>基于 <a href="LICENSE">MIT License</a> 开源 · 打印机与撕纸音效裁剪自 Freesound CC0 公共领域真实录音</sub>
+</p>

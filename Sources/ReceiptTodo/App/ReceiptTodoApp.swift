@@ -12,6 +12,13 @@ struct ReceiptTodoMain {
             }
             return
         }
+        if let idx = args.firstIndex(of: "--render-showcase"), idx + 1 < args.count {
+            let outDir = args[idx + 1]
+            MainActor.assumeIsolated {
+                PreviewRenderer.renderShowcaseBanners(to: outDir)
+            }
+            return
+        }
 
         let app = NSApplication.shared
         let delegate = AppDelegate()
@@ -29,21 +36,21 @@ private enum PreviewRenderer {
 
         let store = TodoStore()
         store.isRenderingStaticPreview = true
-        let soccerID = UUID()
+        let lunchID = UUID()
         store.receipt = DailyReceipt(
             dateString: "2026-11-22",
             receiptNo: "NO.20261122",
             items: [
-                TodoItem(title: "早会同步", timeHint: "09:30", scheduledMinutes: 9 * 60 + 30, isDone: true, source: .voice),
-                TodoItem(id: soccerID, title: "去踢足球", timeHint: "12:00", scheduledMinutes: 12 * 60, isDone: false, source: .voice),
-                TodoItem(title: "回复封面反馈", timeHint: "15:30", scheduledMinutes: 15 * 60 + 30, isDone: false, source: .voice),
-                TodoItem(title: "完成小红书校招脚本", isDone: false, source: .voice),
-                TodoItem(title: "跟进 GLM 视频进度", isDone: false, source: .voice)
+                TodoItem(title: "晨会同步本周排期", timeHint: "09:30", scheduledMinutes: 9 * 60 + 30, isDone: true, source: .voice),
+                TodoItem(id: lunchID, title: "约朋友吃午饭", timeHint: "12:00", scheduledMinutes: 12 * 60, isDone: false, source: .voice),
+                TodoItem(title: "整理周报发给团队", timeHint: "15:30", scheduledMinutes: 15 * 60 + 30, isDone: false, source: .voice),
+                TodoItem(title: "下班去健身房跑 5 公里", isDone: false, source: .voice),
+                TodoItem(title: "买猫粮和冰美式咖啡", isDone: false, source: .voice)
             ]
         )
         store.currentMinutesOfDay = 12 * 60
-        store.activeReminderItemID = soccerID
-        store.streakDays = 5
+        store.activeReminderItemID = lunchID
+        store.streakDays = 7
 
         let url = URL(fileURLWithPath: dir, isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -112,10 +119,11 @@ private enum PreviewRenderer {
             dateString: "2026-11-22",
             receiptNo: "NO.20261122",
             items: [
-                TodoItem(title: "早会同步", timeHint: "09:30", scheduledMinutes: 9 * 60 + 30, isDone: true, source: .voice),
-                TodoItem(title: "去踢足球", timeHint: "12:00", scheduledMinutes: 12 * 60, isDone: true, source: .voice),
-                TodoItem(title: "完成小红书校招脚本", isDone: true, source: .voice),
-                TodoItem(title: "跟进 GLM 视频进度", isDone: true, source: .voice)
+                TodoItem(title: "晨会同步本周排期", timeHint: "09:30", scheduledMinutes: 9 * 60 + 30, isDone: true, source: .voice),
+                TodoItem(title: "约朋友吃午饭", timeHint: "12:00", scheduledMinutes: 12 * 60, isDone: true, source: .voice),
+                TodoItem(title: "整理周报发给团队", timeHint: "15:30", scheduledMinutes: 15 * 60 + 30, isDone: true, source: .voice),
+                TodoItem(title: "下班去健身房跑 5 公里", isDone: true, source: .voice),
+                TodoItem(title: "买猫粮和冰美式咖啡", isDone: true, source: .voice)
             ]
         )
         save(
@@ -127,7 +135,7 @@ private enum PreviewRenderer {
                 )
                 ShareReceiptWindowView(
                     receipt: shareSample,
-                    streakDays: 5,
+                    streakDays: 7,
                     canUndoTearOff: true,
                     isStaticPreview: true,
                     onUndoTearOff: {},
@@ -136,6 +144,494 @@ private enum PreviewRenderer {
             }.frame(width: 470, height: 740),
             to: url.appendingPathComponent("preview_share_poster.png")
         )
+    }
+
+    /// Generates 4 cohesive, wide studio showcase banners (inspired by polished indie macOS landing pages)
+    /// using relatable fictional to-dos for the public GitHub README.
+    static func renderShowcaseBanners(to dir: String) {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.prohibited)
+
+        let url = URL(fileURLWithPath: dir, isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+
+        func makeWorkingStore() -> TodoStore {
+            let s = TodoStore()
+            s.isRenderingStaticPreview = true
+            let lunchID = UUID()
+            s.receipt = DailyReceipt(
+                dateString: "2026-11-22",
+                receiptNo: "NO.20261122",
+                items: [
+                    TodoItem(title: "早会同步排期", timeHint: "09:30", scheduledMinutes: 9 * 60 + 30, isDone: true, source: .voice),
+                    TodoItem(id: lunchID, title: "约朋友吃午饭", timeHint: "12:00", scheduledMinutes: 12 * 60, isDone: false, source: .voice),
+                    TodoItem(title: "整理本周周报", timeHint: "15:30", scheduledMinutes: 15 * 60 + 30, isDone: false, source: .voice),
+                    TodoItem(title: "下班去健身房跑 5 公里", isDone: false, source: .voice),
+                    TodoItem(title: "买猫粮和冰美式咖啡", isDone: false, source: .voice)
+                ]
+            )
+            s.currentMinutesOfDay = 12 * 60
+            s.activeReminderItemID = lunchID
+            s.streakDays = 7
+            s.isTodayTornOff = false
+            s.isExpanded = true
+            s.paperReveal = 1.0
+            s.isPrinting = false
+            s.tearPullDistance = 0
+            s.tearProgress = 0
+            s.tearDriftProgress = 0
+            return s
+        }
+
+        let completedSample = DailyReceipt(
+            dateString: "2026-11-22",
+            receiptNo: "NO.20261122",
+            items: [
+                TodoItem(title: "早会同步排期", timeHint: "09:30", scheduledMinutes: 9 * 60 + 30, isDone: true, source: .voice),
+                TodoItem(title: "约朋友吃午饭", timeHint: "12:00", scheduledMinutes: 12 * 60, isDone: true, source: .voice),
+                TodoItem(title: "整理本周周报", timeHint: "15:30", scheduledMinutes: 15 * 60 + 30, isDone: true, source: .voice),
+                TodoItem(title: "下班去健身房跑 5 公里", isDone: true, source: .voice),
+                TodoItem(title: "买猫粮和冰美式咖啡", isDone: true, source: .voice)
+            ]
+        )
+
+        // Optional real desktop screenshot passed via environment for authentic macOS Hero Banner
+        let env = ProcessInfo.processInfo.environment
+        let realDesktopShot = env["HERO_DESKTOP_IMG"].flatMap { NSImage(contentsOfFile: $0) }
+        let realShareCardShot = env["HERO_SHARE_IMG"].flatMap { NSImage(contentsOfFile: $0) }
+
+        // 1. HERO BANNER (1160 x 540) — blends the real Mac desktop screenshot with crisp editorial hero typography!
+        let heroStore = makeWorkingStore()
+        let heroView = ZStack {
+            if let bgImg = realDesktopShot {
+                Image(nsImage: bgImg)
+                    .resizable()
+                    .interpolation(.high)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 1160, height: 540, alignment: .top)
+                    .clipped()
+                    .overlay(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.black.opacity(0.02), location: 0.0),
+                                .init(color: Color.black.opacity(0.06), location: 0.34),
+                                .init(color: Color.black.opacity(0.32), location: 0.62),
+                                .init(color: Color.black.opacity(0.46), location: 1.0)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .overlay(alignment: .trailing) {
+                        HStack(spacing: 28) {
+                            VStack(alignment: .leading, spacing: 14) {
+                                Text("MACOS 桌面小票待办")
+                                    .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                                    .tracking(1.6)
+                                    .foregroundColor(.white.opacity(0.92))
+                                    .padding(.horizontal, 11)
+                                    .padding(.vertical, 5)
+                                    .background(Color.white.opacity(0.18))
+                                    .clipShape(Capsule())
+
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                        Text("ReceiptTodo")
+                                            .font(.system(size: 46, weight: .black, design: .rounded))
+                                            .foregroundColor(.white)
+                                        Text("小票待办")
+                                            .font(.system(size: 20, weight: .semibold))
+                                            .foregroundColor(.white.opacity(0.86))
+                                    }
+                                    .shadow(color: Color.black.opacity(0.22), radius: 8, x: 0, y: 3)
+
+                                    Text("把每天要做的事，像小票一样挂在桌角")
+                                        .font(.system(size: 19.5, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.96))
+                                        .padding(.top, 4)
+
+                                    Text("随口说出今天安排 · 到点反白提醒 · 晚上撕下变打卡图")
+                                        .font(.system(size: 13.5, weight: .medium))
+                                        .foregroundColor(.white.opacity(0.84))
+                                        .padding(.top, 2)
+                                }
+
+                                HStack(spacing: 9) {
+                                    ForEach(["语音自动整理", "真实撕纸手感", "纯本地零上传"], id: \.self) { label in
+                                        Text(label)
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(Color.black.opacity(0.28))
+                                            .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 0.8))
+                                            .clipShape(Capsule())
+                                    }
+                                }
+                                .padding(.top, 4)
+                            }
+                            .frame(width: 455, alignment: .leading)
+
+                            if let cardImg = realShareCardShot {
+                                Image(nsImage: cardImg)
+                                    .resizable()
+                                    .interpolation(.high)
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(height: 390)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .stroke(Color.white.opacity(0.35), lineWidth: 0.8)
+                                    )
+                                    .shadow(color: Color.black.opacity(0.34), radius: 22, x: 0, y: 12)
+                                    .rotationEffect(.degrees(3.0))
+                            }
+                        }
+                        .padding(.trailing, 42)
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .stroke(Color.black.opacity(0.08), lineWidth: 1)
+                    )
+            } else {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 0.955, green: 0.950, blue: 0.935),
+                                Color(red: 0.895, green: 0.890, blue: 0.870)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                ReceiptCardView(store: heroStore, speech: heroStore.speechService)
+                    .scaleEffect(0.58)
+            }
+        }
+        .frame(width: 1160, height: 540)
+        save(view: heroView, to: url.appendingPathComponent("hero-banner.png"))
+
+        // 2. FEATURE 1: VOICE -> CLEAN RECEIPT & REMINDER (1160 x 540)
+        let f1Store = makeWorkingStore()
+        let feature1 = ZStack {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.94, green: 0.95, blue: 0.965),
+                            Color(red: 0.885, green: 0.90, blue: 0.925)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.black.opacity(0.06), lineWidth: 1)
+                )
+
+            HStack(spacing: 28) {
+                // Left: natural spoken quote card
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(ReceiptTheme.stampRed)
+                            .frame(width: 9, height: 9)
+                        Text("按下 Option + Space，随口说就行")
+                            .font(.system(size: 12.5, weight: .bold))
+                            .foregroundColor(ReceiptTheme.stampRed)
+                        Spacer()
+                        HStack(spacing: 3) {
+                            ForEach([6.0, 14.0, 20.0, 11.0, 18.0, 9.0, 15.0], id: \.self) { h in
+                                Capsule()
+                                    .fill(ReceiptTheme.stampRed.opacity(0.75))
+                                    .frame(width: 3, height: h)
+                            }
+                        }
+                    }
+
+                    Text("「上午九点半开早会同步排期，中午十二点约朋友吃午饭，下午三点半整理本周周报，下班去健身房跑五公里，顺便买猫粮和冰美式。」")
+                        .font(.system(size: 16.5, weight: .medium))
+                        .lineSpacing(6)
+                        .foregroundColor(ReceiptTheme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    DashedDivider()
+                        .opacity(0.45)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        voiceCheckRow("自动去掉口语废话、纠正同音错别字")
+                        voiceCheckRow("自动拆分多件事，并按时间先后排好队")
+                        voiceCheckRow("到点自动弹出黑条提醒，一眼就能划掉或推迟")
+                    }
+                }
+                .padding(28)
+                .frame(width: 470)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white.opacity(0.92))
+                        .shadow(color: Color.black.opacity(0.09), radius: 16, x: 0, y: 8)
+                )
+
+                // Middle arrow
+                VStack(spacing: 6) {
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(ReceiptTheme.inkSecondary)
+                    Text("自动打印")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(ReceiptTheme.inkMuted)
+                }
+
+                // Right: printed live receipt
+                ReceiptCardView(store: f1Store, speech: f1Store.speechService)
+                    .frame(width: 410, height: 830, alignment: .top)
+                    .scaleEffect(0.58)
+                    .frame(width: 260, height: 490)
+            }
+            .padding(.horizontal, 48)
+        }
+        .frame(width: 1160, height: 540)
+        save(view: feature1, to: url.appendingPathComponent("feature-voice-reminder.png"))
+
+        // 3. FEATURE 2: TEAR -> DIRECT SHARE POSTER -> NEXT ROLL STUB (1160 x 560)
+        let tearStore = makeWorkingStore()
+        tearStore.tearPullDistance = 74
+        tearStore.tearProgress = 0.62
+
+        let stubStore = makeWorkingStore()
+        stubStore.isTodayTornOff = true
+        stubStore.isPlanningTomorrow = false
+        stubStore.tornOffTodayDoneCount = 5
+        stubStore.tornOffTodayTotalCount = 5
+        stubStore.activeReminderItemID = nil
+        stubStore.receipt = DailyReceipt(dateString: "2026-11-23", receiptNo: "NO.20261123", items: [])
+
+        let feature2 = ZStack {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.955, green: 0.94, blue: 0.915),
+                            Color(red: 0.905, green: 0.885, blue: 0.85)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.black.opacity(0.06), lineWidth: 1)
+                )
+
+            HStack(alignment: .bottom, spacing: 26) {
+                // Step 1: Pulling down & progressive tear
+                VStack(spacing: 12) {
+                    ReceiptCardView(store: tearStore, speech: tearStore.speechService)
+                        .frame(width: 410, height: 850, alignment: .top)
+                        .scaleEffect(0.54)
+                        .frame(width: 250, height: 465)
+
+                    stepCaption("① 沿齿线轻轻下拉", sub: "伴随真实同步撕纸声")
+                }
+
+                // Step 2: Direct frameless 3x share poster + floating HUD
+                VStack(spacing: 12) {
+                    ShareReceiptWindowView(
+                        receipt: completedSample,
+                        streakDays: 7,
+                        canUndoTearOff: true,
+                        isStaticPreview: true,
+                        onUndoTearOff: {},
+                        onClose: {}
+                    )
+                    .frame(width: 450, height: 700)
+                    .scaleEffect(0.66)
+                    .frame(width: 315, height: 465)
+
+                    stepCaption("② 直接弹出高清打卡图", sub: "一键复制发微信 / 隔空投送")
+                }
+
+                // Step 3: Clean short NEXT ROLL stub
+                VStack(spacing: 12) {
+                    VStack {
+                        Spacer()
+                        ReceiptCardView(store: stubStore, speech: stubStore.speechService)
+                            .frame(width: 410, height: 270, alignment: .top)
+                            .scaleEffect(0.76)
+                            .frame(width: 310, height: 215)
+                        Spacer()
+                    }
+                    .frame(width: 310, height: 465)
+
+                    stepCaption("③ 切出清爽明日新纸头", sub: "桌面瞬间干净，随时可复原")
+                }
+            }
+            .padding(.horizontal, 42)
+            .padding(.vertical, 24)
+        }
+        .frame(width: 1160, height: 560)
+        save(view: feature2, to: url.appendingPathComponent("feature-tear-share.png"))
+
+        // 4. FEATURE 3: CORNER COLLAPSED MODE + CARRY-OVER (1160 x 460)
+        let cornerStore = makeWorkingStore()
+        cornerStore.isExpanded = false
+
+        let tomorrowStore = makeWorkingStore()
+        tomorrowStore.isTodayTornOff = true
+        tomorrowStore.isPlanningTomorrow = true
+        tomorrowStore.activeReminderItemID = nil
+        tomorrowStore.carryOverSourceDate = "2026-11-22"
+        tomorrowStore.carryOverCandidates = [
+            TodoItem(title: "整理本周周报", isDone: false, source: .voice),
+            TodoItem(title: "买猫粮和冰美式咖啡", isDone: false, source: .voice)
+        ]
+        tomorrowStore.selectedCarryOverIDs = Set(tomorrowStore.carryOverCandidates.map(\.id))
+        tomorrowStore.isCarryOverPickerOpen = true
+        tomorrowStore.receipt = DailyReceipt(dateString: "2026-11-23", receiptNo: "NO.20261123", items: [])
+
+        let feature3 = ZStack {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.93, green: 0.94, blue: 0.955),
+                            Color(red: 0.875, green: 0.89, blue: 0.915)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.black.opacity(0.06), lineWidth: 1)
+                )
+
+            HStack(spacing: 36) {
+                // Left: Simulated macOS desktop corner with collapsed brushed-metal slot
+                VStack(spacing: 14) {
+                    ZStack(alignment: .topTrailing) {
+                        // Simulated calm macOS desktop wallpaper corner
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.20, green: 0.27, blue: 0.36),
+                                        Color(red: 0.34, green: 0.44, blue: 0.52),
+                                        Color(red: 0.55, green: 0.62, blue: 0.66)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .overlay(alignment: .top) {
+                                // Subtle macOS menu bar strip
+                                HStack(spacing: 12) {
+                                    Spacer()
+                                    Image(systemName: "receipt")
+                                        .font(.system(size: 11, weight: .semibold))
+                                    Image(systemName: "wifi")
+                                        .font(.system(size: 11))
+                                    Text("周日 11:45")
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .foregroundColor(.white.opacity(0.92))
+                                .padding(.horizontal, 14)
+                                .frame(height: 26)
+                                .background(Color.black.opacity(0.24))
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+                        // Real collapsed metallic slot perched naturally in top-right corner
+                        CollapsedPillView(store: cornerStore, speech: cornerStore.speechService)
+                            .padding(.top, 36)
+                            .padding(.trailing, 18)
+
+                        // Subtle ghost desktop card on left for real workspace scale
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 5) {
+                                Circle().fill(Color.white.opacity(0.35)).frame(width: 7, height: 7)
+                                Circle().fill(Color.white.opacity(0.25)).frame(width: 7, height: 7)
+                                Circle().fill(Color.white.opacity(0.20)).frame(width: 7, height: 7)
+                            }
+                            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.22)).frame(width: 110, height: 8)
+                            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.14)).frame(width: 160, height: 8)
+                            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.14)).frame(width: 135, height: 8)
+                            Spacer()
+                        }
+                        .padding(14)
+                        .frame(width: 210, height: 155)
+                        .background(Color.white.opacity(0.10))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.14), lineWidth: 0.7))
+                        .cornerRadius(10)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                        .padding(18)
+                    }
+                    .frame(width: 490, height: 320)
+                    .shadow(color: Color.black.opacity(0.14), radius: 14, x: 0, y: 8)
+
+                    stepCaption("收起后只占桌面一角", sub: "置顶不抢焦点，扫一眼就知进度与下场提醒")
+                }
+
+                // Right: Cross-weekend carry-over picker preview (top-aligned so metal slot + date + checklist show cleanly!)
+                VStack(spacing: 14) {
+                    Color(red: 0.90, green: 0.905, blue: 0.915)
+                        .frame(width: 490, height: 320)
+                        .overlay(alignment: .top) {
+                            ReceiptCardView(store: tomorrowStore, speech: tomorrowStore.speechService)
+                                .frame(width: 410, height: 760, alignment: .top)
+                                .scaleEffect(0.78, anchor: .top)
+                                .padding(.top, 10)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(Color.black.opacity(0.06), lineWidth: 0.8)
+                        )
+                        .shadow(color: Color.black.opacity(0.10), radius: 12, x: 0, y: 6)
+
+                    stepCaption("没做完的，明天接得住", sub: "跨周末也能一键挑选顺延，也可随时翻看往日小票")
+                }
+            }
+            .padding(.horizontal, 44)
+        }
+        .frame(width: 1160, height: 460)
+        save(view: feature3, to: url.appendingPathComponent("feature-corner-carryover.png"))
+    }
+
+    private static func heroTag(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundColor(ReceiptTheme.ink)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.white.opacity(0.82))
+            .overlay(Capsule().stroke(Color.black.opacity(0.08), lineWidth: 0.8))
+            .clipShape(Capsule())
+    }
+
+    private static func voiceCheckRow(_ text: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 13))
+                .foregroundColor(ReceiptTheme.ink)
+            Text(text)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(ReceiptTheme.inkSecondary)
+        }
+    }
+
+    private static func stepCaption(_ title: String, sub: String) -> some View {
+        VStack(spacing: 3) {
+            Text(title)
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(ReceiptTheme.ink)
+            Text(sub)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(ReceiptTheme.inkSecondary)
+        }
     }
 
     private static func save<V: View>(view: V, to url: URL) {
