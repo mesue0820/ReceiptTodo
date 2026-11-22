@@ -523,18 +523,29 @@ struct ReceiptCardView: View {
     // MARK: - Editorial Header
 
     private var receiptHeaderSection: some View {
-        VStack(spacing: 5) {
+        VStack(spacing: 6) {
             Text("DAILY RECEIPT")
                 .font(.system(size: 21, weight: .black, design: .rounded))
                 .tracking(2.0)
                 .foregroundColor(ReceiptTheme.ink)
                 .frame(maxWidth: .infinity, alignment: .center)
 
-            Text(store.isViewingTomorrow ? "TOMORROW'S TO-DO LIST" : "TODAY'S TO-DO LIST")
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .tracking(2.2)
-                .foregroundColor(ReceiptTheme.inkSecondary)
-                .frame(maxWidth: .infinity, alignment: .center)
+            if store.isViewingTomorrow {
+                Text("TOMORROW · 明日预备")
+                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                    .tracking(1.2)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3)
+                    .background(ReceiptTheme.ink)
+                    .cornerRadius(2)
+            } else {
+                Text("TODAY'S TO-DO LIST")
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .tracking(2.2)
+                    .foregroundColor(ReceiptTheme.inkSecondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+            }
         }
     }
 
