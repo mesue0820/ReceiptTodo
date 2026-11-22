@@ -1450,9 +1450,11 @@ private struct TodoRowView: View {
                         .strikethrough(item.isDone, color: ReceiptTheme.stampRed.opacity(0.88))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
+                        .layoutPriority(1)
 
                     if let timeLabel = item.displayTimeLabel {
                         DottedLeaderLine()
+                            .layoutPriority(0)
                         Text(timeLabel)
                             .font(.system(size: 11.5, weight: (isDue && !item.isDone) ? .bold : .medium, design: .monospaced))
                             .foregroundColor(
@@ -1461,6 +1463,7 @@ private struct TodoRowView: View {
                                     : (isDue ? ReceiptTheme.stampRed : ReceiptTheme.inkSecondary)
                             )
                             .fixedSize()
+                            .layoutPriority(2)
                             .help("双击可修改时间，悬停可移除时间")
                     } else if item.carryOverDays > 0 && !item.isDone {
                         Spacer(minLength: 4)

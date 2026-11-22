@@ -195,122 +195,180 @@ private enum PreviewRenderer {
             ]
         )
 
-        // Optional real desktop screenshot passed via environment for authentic macOS Hero Banner
-        let env = ProcessInfo.processInfo.environment
-        let realDesktopShot = env["HERO_DESKTOP_IMG"].flatMap { NSImage(contentsOfFile: $0) }
-        let realShareCardShot = env["HERO_SHARE_IMG"].flatMap { NSImage(contentsOfFile: $0) }
-
-        // 1. HERO BANNER (1160 x 540) — blends the real Mac desktop screenshot with crisp editorial hero typography!
+        // 1. HERO BANNER (1160 x 540 @ 2x) — 100% razor-sharp native vector UI over lush mint-green Mac desktop aesthetic!
         let heroStore = makeWorkingStore()
+        heroStore.activeReminderItemID = nil
+        heroStore.streakDays = 7
+        heroStore.receipt = DailyReceipt(
+            dateString: "2026-11-22",
+            receiptNo: "NO.20261122",
+            items: [
+                TodoItem(title: "早会同步排期", timeHint: "09:30", scheduledMinutes: 9 * 60 + 30, isDone: true, source: .voice),
+                TodoItem(title: "和朋友共进晚餐", timeHint: "20:00", scheduledMinutes: 20 * 60, isDone: false, source: .voice),
+                TodoItem(title: "整理本周周报", isDone: true, source: .voice),
+                TodoItem(title: "下班去健身房跑 5 公里", isDone: false, source: .voice)
+            ]
+        )
+
+        let heroCompletedSample = DailyReceipt(
+            dateString: "2026-11-22",
+            receiptNo: "NO.20261122",
+            items: [
+                TodoItem(title: "早会同步排期", timeHint: "09:30", scheduledMinutes: 9 * 60 + 30, isDone: true, source: .voice),
+                TodoItem(title: "和朋友共进晚餐", timeHint: "20:00", scheduledMinutes: 20 * 60, isDone: true, source: .voice),
+                TodoItem(title: "整理本周周报", isDone: true, source: .voice),
+                TodoItem(title: "下班去健身房跑 5 公里", isDone: true, source: .voice)
+            ]
+        )
+
         let heroView = ZStack {
-            if let bgImg = realDesktopShot {
-                Image(nsImage: bgImg)
-                    .resizable()
-                    .interpolation(.high)
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 1160, height: 540, alignment: .top)
-                    .clipped()
-                    .overlay(
-                        LinearGradient(
-                            stops: [
-                                .init(color: Color.black.opacity(0.02), location: 0.0),
-                                .init(color: Color.black.opacity(0.06), location: 0.34),
-                                .init(color: Color.black.opacity(0.32), location: 0.62),
-                                .init(color: Color.black.opacity(0.46), location: 1.0)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .overlay(alignment: .trailing) {
-                        HStack(spacing: 28) {
-                            VStack(alignment: .leading, spacing: 14) {
-                                Text("MACOS 桌面小票待办")
-                                    .font(.system(size: 11.5, weight: .bold, design: .monospaced))
-                                    .tracking(1.6)
-                                    .foregroundColor(.white.opacity(0.92))
-                                    .padding(.horizontal, 11)
-                                    .padding(.vertical, 5)
-                                    .background(Color.white.opacity(0.18))
-                                    .clipShape(Capsule())
+            // Silky sculptural mint-green macOS desktop backdrop (zero JPEG artifacts!)
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.42, green: 0.78, blue: 0.56),
+                        Color(red: 0.22, green: 0.56, blue: 0.38),
+                        Color(red: 0.14, green: 0.40, blue: 0.28)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
 
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                        Text("ReceiptTodo")
-                                            .font(.system(size: 46, weight: .black, design: .rounded))
-                                            .foregroundColor(.white)
-                                        Text("小票待办")
-                                            .font(.system(size: 20, weight: .semibold))
-                                            .foregroundColor(.white.opacity(0.86))
-                                    }
-                                    .shadow(color: Color.black.opacity(0.22), radius: 8, x: 0, y: 3)
-
-                                    Text("把每天要做的事，像小票一样挂在桌角")
-                                        .font(.system(size: 19.5, weight: .bold))
-                                        .foregroundColor(.white.opacity(0.96))
-                                        .padding(.top, 4)
-
-                                    Text("随口说出今天安排 · 到点反白提醒 · 晚上撕下变打卡图")
-                                        .font(.system(size: 13.5, weight: .medium))
-                                        .foregroundColor(.white.opacity(0.84))
-                                        .padding(.top, 2)
-                                }
-
-                                HStack(spacing: 9) {
-                                    ForEach(["语音自动整理", "真实撕纸手感", "纯本地零上传"], id: \.self) { label in
-                                        Text(label)
-                                            .font(.system(size: 12, weight: .semibold))
-                                            .foregroundColor(.white)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 6)
-                                            .background(Color.black.opacity(0.28))
-                                            .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 0.8))
-                                            .clipShape(Capsule())
-                                    }
-                                }
-                                .padding(.top, 4)
-                            }
-                            .frame(width: 455, alignment: .leading)
-
-                            if let cardImg = realShareCardShot {
-                                Image(nsImage: cardImg)
-                                    .resizable()
-                                    .interpolation(.high)
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(height: 390)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .stroke(Color.white.opacity(0.35), lineWidth: 0.8)
-                                    )
-                                    .shadow(color: Color.black.opacity(0.34), radius: 22, x: 0, y: 12)
-                                    .rotationEffect(.degrees(3.0))
-                            }
-                        }
-                        .padding(.trailing, 42)
+                // Soft sculptural diagonal mint ribbons echoing Apple macOS green wallpaper
+                HStack(spacing: 44) {
+                    ForEach(0..<4, id: \.self) { idx in
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(red: 0.76, green: 0.96, blue: 0.80).opacity(idx % 2 == 0 ? 0.52 : 0.34),
+                                        Color(red: 0.10, green: 0.36, blue: 0.22).opacity(0.45)
+                                    ],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(width: 210, height: 820)
+                            .blur(radius: 16)
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .stroke(Color.black.opacity(0.08), lineWidth: 1)
-                    )
-            } else {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                Color(red: 0.955, green: 0.950, blue: 0.935),
-                                Color(red: 0.895, green: 0.890, blue: 0.870)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                ReceiptCardView(store: heroStore, speech: heroStore.speechService)
-                    .scaleEffect(0.58)
+                }
+                .rotationEffect(.degrees(14))
+                .offset(x: 40, y: 10)
+
+                // Gentle dark vignette toward right for crisp white typography readability
+                LinearGradient(
+                    stops: [
+                        .init(color: Color.black.opacity(0.02), location: 0.0),
+                        .init(color: Color.black.opacity(0.14), location: 0.40),
+                        .init(color: Color.black.opacity(0.32), location: 1.0)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
             }
+            .overlay(alignment: .top) {
+                // Crisp native 2x macOS menu bar strip
+                HStack(spacing: 16) {
+                    Image(systemName: "apple.logo")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("ReceiptTodo")
+                        .font(.system(size: 11.5, weight: .bold))
+                    Text("文件").font(.system(size: 11.5))
+                    Text("编辑").font(.system(size: 11.5))
+                    Text("显示").font(.system(size: 11.5))
+                    Spacer()
+                    Image(systemName: "receipt").font(.system(size: 11, weight: .semibold))
+                    Image(systemName: "wifi").font(.system(size: 11))
+                    Text("周日 19:45").font(.system(size: 11.5, weight: .medium))
+                }
+                .foregroundColor(.white.opacity(0.92))
+                .padding(.horizontal, 18)
+                .frame(height: 26)
+                .background(Color.black.opacity(0.20))
+            }
+
+            HStack(spacing: 26) {
+                // Left: 100% razor-sharp native 2x vector ReceiptCardView hanging straight off desktop corner!
+                ReceiptCardView(store: heroStore, speech: heroStore.speechService)
+                    .frame(width: 400, height: 740, alignment: .top)
+                    .scaleEffect(0.67, anchor: .top)
+                    .frame(width: 274, height: 492, alignment: .top)
+                    .padding(.top, 28)
+
+                // Center: Crisp white editorial product pitch
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("MACOS 桌面小票待办")
+                        .font(.system(size: 11.5, weight: .bold, design: .monospaced))
+                        .tracking(1.6)
+                        .foregroundColor(.white.opacity(0.94))
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.18))
+                        .clipShape(Capsule())
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text("ReceiptTodo")
+                                .font(.system(size: 46, weight: .black, design: .rounded))
+                                .foregroundColor(.white)
+                            Text("小票待办")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(.white.opacity(0.88))
+                        }
+                        .shadow(color: Color.black.opacity(0.22), radius: 8, x: 0, y: 3)
+
+                        Text("把每天要做的事，像小票一样挂在桌角")
+                            .font(.system(size: 19.5, weight: .bold))
+                            .foregroundColor(.white.opacity(0.96))
+                            .padding(.top, 4)
+
+                        Text("随口说出今天安排 · 到点反白提醒 · 晚上撕下变打卡图")
+                            .font(.system(size: 13.5, weight: .medium))
+                            .foregroundColor(.white.opacity(0.86))
+                            .padding(.top, 2)
+                    }
+
+                    HStack(spacing: 9) {
+                        ForEach(["语音自动整理", "真实撕纸手感", "纯本地零上传"], id: \.self) { label in
+                            Text(label)
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color.black.opacity(0.28))
+                                .overlay(Capsule().stroke(Color.white.opacity(0.24), lineWidth: 0.8))
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+                .frame(width: 448, alignment: .leading)
+
+                // Right: 100% razor-sharp native 2x vector ShareableReceiptArtwork!
+                ShareableReceiptArtwork(
+                    receipt: heroCompletedSample,
+                    streakDays: 7,
+                    backdrop: .warmGray,
+                    completedOnly: false
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.white.opacity(0.32), lineWidth: 0.8)
+                )
+                .shadow(color: Color.black.opacity(0.34), radius: 22, x: 0, y: 12)
+                .scaleEffect(0.68)
+                .rotationEffect(.degrees(3.2))
+                .frame(width: 280, height: 420)
+            }
+            .padding(.horizontal, 32)
         }
         .frame(width: 1160, height: 540)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .stroke(Color.black.opacity(0.08), lineWidth: 1)
+        )
         save(view: heroView, to: url.appendingPathComponent("hero-banner.png"))
 
         // 2. FEATURE 1: VOICE -> CLEAN RECEIPT & REMINDER (1160 x 540)

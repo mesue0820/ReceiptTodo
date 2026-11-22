@@ -304,13 +304,16 @@ struct ShareableReceiptArtwork: View {
                     .foregroundColor(item.isDone ? ReceiptTheme.inkSecondary : ReceiptTheme.ink)
                     .strikethrough(item.isDone, color: ReceiptTheme.stampRed.opacity(0.82))
                     .fixedSize(horizontal: false, vertical: true)
+                    .layoutPriority(1)
 
                 if let timeLabel = item.displayTimeLabel {
                     DottedLeaderLine()
+                        .layoutPriority(0)
                     Text(timeLabel)
                         .font(.system(size: 11.5, weight: .medium, design: .monospaced))
                         .foregroundColor(ReceiptTheme.inkMuted)
                         .fixedSize()
+                        .layoutPriority(2)
                 } else {
                     Spacer(minLength: 4)
                 }
