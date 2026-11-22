@@ -63,7 +63,7 @@ final class TodoStore: ObservableObject {
     @Published var isTearingOff: Bool = false
     var isRenderingStaticPreview: Bool = false
 
-    // Focus Lock Mode (single-task inverted black strip) & gentle overdue sway
+    // Focus Lock Mode (single-task inverted black countdown strip) & gentle overdue sway
     @Published var focusedItemID: UUID? {
         didSet {
             if oldValue != focusedItemID {
@@ -71,7 +71,9 @@ final class TodoStore: ObservableObject {
             }
         }
     }
-    @Published var focusElapsedSeconds: Int = 0
+    @Published var focusTotalSeconds: Int = 25 * 60
+    @Published var focusRemainingSeconds: Int = 25 * 60
+    @Published var isFocusPaused: Bool = false
     @Published var paperNudgeAngle: Double = 0.0
 
     @Published var activeReminderItemID: UUID? {
@@ -203,14 +205,26 @@ final class TodoStore: ObservableObject {
         return receipt.items.first { $0.id == id && !$0.isDone }
     }
 
-    var formattedFocusElapsed: String {
-        let hrs = focusElapsedSeconds / 3600
-        let mins = (focusElapsedSeconds % 3600) / 60
-        let secs = focusElapsedSeconds % 60
-        if hrs > 0 {
-            return String(format: "%02d:%02d:%02d", hrs, mins, secs)
-        }
-        return String(format: "%02d:%02d", mins, secs)
+    var isFocusOvertime: Bool {
+        focusRemainingSeconds < 0
+    }
+
+    var isFocusFinalStretch: Bool {
+        focusRemainingSeconds <= 5 * 60
+    }
+
+    var focusRemainingFraction: Double {
+        guard focusTotalSeconds > 0 else { return 0 }
+        return max(0.0, min(1.0, Double(focusRemainingSeconds) / Double(focusTotalSeconds)))
+    }
+
+    var formattedFocusCountdown: String {
+        let negative = focusRemainingSeconds < 0
+        let absSec = abs(focusRemainingSeconds)
+        let mins = absSec / 60
+        let secs = absSec % 60
+        let clock = String(format: "%02d:%02d", mins, secs)
+        return negative ? "-\(clock)" : clock
     }
 
     /// Minutes past scheduled time (returns >= 1 when genuinely overdue on active today).
@@ -251,16 +265,18 @@ final class TodoStore: ObservableObject {
         return .calmGreen
     }
 
-    // MARK: - Focus Lock Mode (Single-Task Black Strip)
+    // MARK: - Focus Lock Mode (Single-Task Black Countdown Strip)
 
-    func startFocusing(on item: TodoItem) {
+    func startFocusing(on item: TodoItem, minutes: Int = 25) {
         guard !item.isDone else { return }
         if speechService.isRecording {
             speechService.cancelRecording()
         }
         focusTimer?.invalidate()
         focusedItemID = item.id
-        focusElapsedSeconds = 0
+        focusTotalSeconds = max(60, minutes * 60)
+        focusRemainingSeconds = focusTotalSeconds
+        isFocusPaused = false
         isExpanded = true
         paperReveal = 1.0
         onWindowLayoutChange?(true)
@@ -268,17 +284,45 @@ final class TodoStore: ObservableObject {
 
         focusTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
-                guard let self, self.focusedItemID != nil else { return }
-                self.focusElapsedSeconds += 1
+                guard let self, self.focusedItemID != nil, !self.isFocusPaused else { return }
+                self.focusRemainingSeconds -= 1
+                if self.focusRemainingSeconds == 0 {
+                    self.sound.playReminderChime(enabled: self.settings.soundEnabled)
+                }
             }
         }
+    }
+
+    func setFocusDuration(minutes: Int) {
+        let total = max(60, minutes * 60)
+        focusTotalSeconds = total
+        focusRemainingSeconds = total
+        isFocusPaused = false
+    }
+
+    func extendFocus(minutes: Int = 5) {
+        let delta = minutes * 60
+        if focusRemainingSeconds < 0 {
+            focusRemainingSeconds = delta
+            focusTotalSeconds = max(focusTotalSeconds, delta)
+        } else {
+            focusRemainingSeconds += delta
+            focusTotalSeconds = max(focusTotalSeconds, focusRemainingSeconds)
+        }
+        isFocusPaused = false
+    }
+
+    func toggleFocusPause() {
+        isFocusPaused.toggle()
     }
 
     func exitFocusMode() {
         focusTimer?.invalidate()
         focusTimer = nil
         focusedItemID = nil
-        focusElapsedSeconds = 0
+        isFocusPaused = false
+        focusTotalSeconds = 25 * 60
+        focusRemainingSeconds = 25 * 60
         onWindowLayoutChange?(true)
     }
 
@@ -287,7 +331,9 @@ final class TodoStore: ObservableObject {
         focusTimer?.invalidate()
         focusTimer = nil
         focusedItemID = nil
-        focusElapsedSeconds = 0
+        isFocusPaused = false
+        focusTotalSeconds = 25 * 60
+        focusRemainingSeconds = 25 * 60
         toggleItem(id)
     }
 

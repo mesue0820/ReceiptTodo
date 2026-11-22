@@ -188,9 +188,9 @@ final class FloatingPanelController: NSObject, NSWindowDelegate {
             return collapsedSize
         }
 
-        // Single-task Focus Lock Mode: compact high-contrast black slip hanging from the metal slot!
+        // Single-task Focus Lock Mode: high-urgency giant countdown black slip hanging from the metal slot!
         if store.focusedItem != nil {
-            return CGSize(width: expandedWidth, height: 196)
+            return CGSize(width: expandedWidth, height: 280)
         }
 
         // Right after tearing off today: compact serene NEXT ROLL stub (~252pt) instead of a huge blank form!

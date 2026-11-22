@@ -74,14 +74,16 @@ private enum PreviewRenderer {
             to: url.appendingPathComponent("preview_expanded.png")
         )
 
-        // 1b. Focus Lock Mode (single-task inverted carbon-black thermal strip)
+        // 1b. Focus Lock Mode (single-task giant countdown black thermal strip)
         store.focusedItemID = store.receipt.items[2].id
-        store.focusElapsedSeconds = 18 * 60 + 42
+        store.focusTotalSeconds = 25 * 60
+        store.focusRemainingSeconds = 4 * 60 + 38 // Last 5 mins urgent crimson countdown!
+        store.isFocusPaused = false
         save(
             view: ZStack {
                 Color(red: 0.89, green: 0.89, blue: 0.90)
                 ReceiptCardView(store: store, speech: store.speechService)
-            }.frame(width: 420, height: 225),
+            }.frame(width: 420, height: 310),
             to: url.appendingPathComponent("preview_focus_lock.png")
         )
         store.focusedItemID = nil

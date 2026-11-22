@@ -426,47 +426,97 @@ struct ReceiptCardView: View {
         .help("按住此处轻轻向下拉，可沿顶部齿线撕下今日小票")
     }
 
-    // MARK: - Focus Lock Mode: High-Contrast Single-Task Black Thermal Strip
+    // MARK: - Focus Lock Mode: High-Urgency Giant Countdown Black Thermal Strip
 
     private func focusLockPaperStrip(_ item: TodoItem) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let urgentRed = Color(red: 0.96, green: 0.28, blue: 0.22)
+        let isUrgent = store.isFocusFinalStretch
+        let clockColor: Color = isUrgent ? urgentRed : .white
+
+        return VStack(alignment: .leading, spacing: 0) {
+            // Top bar: live status + 1-click countdown presets (15m / 25m / 45m)
             HStack(spacing: 6) {
                 Circle()
-                    .fill(Color(red: 0.90, green: 0.24, blue: 0.18))
+                    .fill(store.isFocusPaused ? Color.white.opacity(0.35) : urgentRed)
                     .frame(width: 6.5, height: 6.5)
 
-                Text("正在死磕")
-                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                    .tracking(1.0)
-                    .foregroundColor(Color.white.opacity(0.75))
-
-                if let timeLabel = item.displayTimeLabel {
-                    Text("· \(timeLabel)")
-                        .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                        .foregroundColor(store.isItemDue(item) ? Color(red: 0.96, green: 0.36, blue: 0.30) : Color.white.opacity(0.60))
-                }
+                Text(store.isFocusOvertime ? "已超时" : (store.isFocusPaused ? "已暂停" : "死磕倒计时"))
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .tracking(0.9)
+                    .foregroundColor(store.isFocusOvertime ? urgentRed : Color.white.opacity(0.72))
 
                 Spacer()
 
-                Text(store.formattedFocusElapsed)
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
-                    .foregroundColor(.white)
+                HStack(spacing: 4) {
+                    ForEach([15, 25, 45], id: \.self) { mins in
+                        let selected = store.focusTotalSeconds == mins * 60 && !store.isFocusOvertime
+                        Button {
+                            store.setFocusDuration(minutes: mins)
+                        } label: {
+                            Text("\(mins)m")
+                                .font(.system(size: 9.5, weight: selected ? .bold : .medium, design: .monospaced))
+                                .foregroundColor(selected ? ReceiptTheme.ink : Color.white.opacity(0.65))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2.5)
+                                .background(selected ? Color.white : Color.white.opacity(0.10))
+                                .cornerRadius(3)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
-            .padding(.top, 18)
+            .padding(.top, 16)
 
-            Text(item.title)
-                .font(.system(size: 15.5, weight: .bold))
-                .foregroundColor(.white)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 9)
+            // HERO GIANT COUNTDOWN CLOCK (Visceral Urgency!)
+            Text(store.formattedFocusCountdown)
+                .font(.system(size: 46, weight: .black, design: .monospaced))
+                .monospacedDigit()
+                .tracking(1.5)
+                .foregroundColor(clockColor)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
+                .contentTransition(.numericText(countsDown: true))
+
+            // Draining tension progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.14))
+                        .frame(height: 3.5)
+
+                    Capsule()
+                        .fill(isUrgent ? urgentRed : Color.white.opacity(0.92))
+                        .frame(width: max(0, geo.size.width * store.focusRemainingFraction), height: 3.5)
+                        .animation(.linear(duration: 0.9), value: store.focusRemainingSeconds)
+                }
+            }
+            .frame(height: 4)
+            .padding(.bottom, 12)
+
+            // Current locked task title
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(item.title)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                if let timeLabel = item.displayTimeLabel {
+                    Text(timeLabel)
+                        .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                        .foregroundColor(store.isItemDue(item) ? urgentRed : Color.white.opacity(0.55))
+                        .fixedSize()
+                }
+            }
 
             Rectangle()
-                .fill(Color.white.opacity(0.16))
+                .fill(Color.white.opacity(0.14))
                 .frame(height: 1)
                 .padding(.vertical, 11)
 
-            HStack(spacing: 12) {
+            // Bottom action row: Complete + Pause/Resume + +5m + Exit
+            HStack(spacing: 8) {
                 Button {
                     store.completeFocusedItem()
                 } label: {
@@ -478,20 +528,47 @@ struct ReceiptCardView: View {
                     }
                     .foregroundColor(ReceiptTheme.ink)
                     .padding(.horizontal, 12)
-                    .frame(height: 27)
+                    .frame(height: 28)
                     .background(Color.white)
                     .cornerRadius(4)
                 }
                 .buttonStyle(.plain)
+
+                Button {
+                    store.toggleFocusPause()
+                } label: {
+                    Image(systemName: store.isFocusPaused ? "play.fill" : "pause.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white.opacity(0.88))
+                        .frame(width: 28, height: 28)
+                        .background(Color.white.opacity(0.12))
+                        .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .help(store.isFocusPaused ? "继续倒计时" : "暂停倒计时")
+
+                Button {
+                    store.extendFocus(minutes: 5)
+                } label: {
+                    Text("+5m")
+                        .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.white.opacity(0.82))
+                        .padding(.horizontal, 7)
+                        .frame(height: 28)
+                        .background(Color.white.opacity(0.10))
+                        .cornerRadius(4)
+                }
+                .buttonStyle(.plain)
+                .help("加时 5 分钟")
 
                 Spacer()
 
                 Button {
                     store.exitFocusMode()
                 } label: {
-                    Text("退出专注")
+                    Text("退出")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(Color.white.opacity(0.62))
+                        .foregroundColor(Color.white.opacity(0.55))
                 }
                 .buttonStyle(.plain)
             }
@@ -500,14 +577,14 @@ struct ReceiptCardView: View {
         .padding(.horizontal, 22)
         .frame(width: paperWidth)
         .background(
-            Color(red: 0.085, green: 0.088, blue: 0.095)
+            Color(red: 0.08, green: 0.082, blue: 0.09)
                 .clipShape(ThermalReceiptShape(topPinch: 1.6, toothWidth: 13.5, toothHeight: 6.5))
-                .shadow(color: Color.black.opacity(0.34), radius: 14, x: 0, y: 8)
-                .shadow(color: Color.black.opacity(0.18), radius: 3, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.38), radius: 16, x: 0, y: 9)
+                .shadow(color: Color.black.opacity(0.20), radius: 3, x: 0, y: 2)
         )
         .overlay(
             ThermalReceiptShape(topPinch: 1.6, toothWidth: 13.5, toothHeight: 6.5)
-                .stroke(Color.white.opacity(0.08), lineWidth: 0.6)
+                .stroke(isUrgent ? urgentRed.opacity(0.35) : Color.white.opacity(0.08), lineWidth: 0.8)
         )
         .padding(.bottom, 12)
     }
