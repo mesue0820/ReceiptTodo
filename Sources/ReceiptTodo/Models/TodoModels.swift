@@ -180,23 +180,58 @@ enum LLMProviderPreset: String, Codable, CaseIterable, Identifiable {
 }
 
 struct GlobalHotkeyConfig: Codable, Equatable {
+    enum TriggerKind: String, Codable, Equatable {
+        case keyCombo       // Combination (e.g. ⌥ Space) OR single regular key (e.g. F5, `)
+        case singleModifier // Single tap-and-release of a modifier key (e.g. 右 ⌥, Fn 🌐)
+    }
+
+    var kind: TriggerKind
     var keyCode: UInt32
     var modifiers: UInt32
 
+    init(kind: TriggerKind = .keyCombo, keyCode: UInt32, modifiers: UInt32) {
+        self.kind = kind
+        self.keyCode = keyCode
+        self.modifiers = modifiers
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try c.decodeIfPresent(TriggerKind.self, forKey: .kind) ?? .keyCombo
+        keyCode = try c.decode(UInt32.self, forKey: .keyCode)
+        modifiers = try c.decode(UInt32.self, forKey: .modifiers)
+    }
+
     static let defaultOptionSpace = GlobalHotkeyConfig(
+        kind: .keyCombo,
         keyCode: UInt32(kVK_Space),
         modifiers: UInt32(optionKey)
     )
 
     static let presets: [(label: String, config: GlobalHotkeyConfig)] = [
-        ("⌥ Space（默认）", .defaultOptionSpace),
-        ("⌃ Space", GlobalHotkeyConfig(keyCode: UInt32(kVK_Space), modifiers: UInt32(controlKey))),
-        ("⌥ V", GlobalHotkeyConfig(keyCode: UInt32(kVK_ANSI_V), modifiers: UInt32(optionKey))),
-        ("⌘ ⇧ Space", GlobalHotkeyConfig(keyCode: UInt32(kVK_Space), modifiers: UInt32(cmdKey | shiftKey))),
-        ("⌘ ⌥ Space", GlobalHotkeyConfig(keyCode: UInt32(kVK_Space), modifiers: UInt32(cmdKey | optionKey)))
+        ("⌥ Space（默认组合键）", .defaultOptionSpace),
+        ("⌃ Space（组合键）", GlobalHotkeyConfig(keyCode: UInt32(kVK_Space), modifiers: UInt32(controlKey))),
+        ("⌥ V（组合键）", GlobalHotkeyConfig(keyCode: UInt32(kVK_ANSI_V), modifiers: UInt32(optionKey))),
+        ("⌘ ⇧ Space（组合键）", GlobalHotkeyConfig(keyCode: UInt32(kVK_Space), modifiers: UInt32(cmdKey | shiftKey))),
+        ("F5（单键 · 无需权限）", GlobalHotkeyConfig(keyCode: UInt32(kVK_F5), modifiers: 0)),
+        ("右 ⌥（单键轻按）", GlobalHotkeyConfig(kind: .singleModifier, keyCode: UInt32(kVK_RightOption), modifiers: 0)),
+        ("Fn 🌐（单键轻按）", GlobalHotkeyConfig(kind: .singleModifier, keyCode: UInt32(kVK_Function), modifiers: 0))
     ]
 
+    var isSingleModifier: Bool {
+        kind == .singleModifier
+    }
+
+    /// True if user bound a bare typing key (letter, digit, space, punctuation) with no modifier.
+    var isPlainTypingSingleKey: Bool {
+        guard kind == .keyCombo && modifiers == 0 else { return false }
+        return !Self.functionKeyCodes.contains(keyCode)
+    }
+
     var displaySymbols: String {
+        if kind == .singleModifier {
+            return Self.modifierKeyName(for: keyCode)
+        }
         var parts: [String] = []
         if (modifiers & UInt32(controlKey)) != 0 { parts.append("⌃") }
         if (modifiers & UInt32(optionKey)) != 0 { parts.append("⌥") }
@@ -206,9 +241,9 @@ struct GlobalHotkeyConfig: Codable, Equatable {
         return parts.joined(separator: " ")
     }
 
-    static func from(event: NSEvent) -> GlobalHotkeyConfig? {
+    /// Captures either a key combination OR a single non-modifier key (e.g. F5, `, etc.).
+    static func from(keyDownEvent event: NSEvent) -> GlobalHotkeyConfig? {
         let code = UInt32(event.keyCode)
-        // Reject Escape (used to cancel recording) and bare modifier keys
         if code == UInt32(kVK_Escape) || isModifierOnlyKeyCode(code) {
             return nil
         }
@@ -220,22 +255,44 @@ struct GlobalHotkeyConfig: Codable, Equatable {
         if flags.contains(.control) { carbonMods |= UInt32(controlKey) }
         if flags.contains(.shift) { carbonMods |= UInt32(shiftKey) }
 
-        let hasPrimaryModifier = (carbonMods & UInt32(cmdKey | optionKey | controlKey)) != 0
-        let isFunctionKey = Self.functionKeyCodes.contains(code)
-        // Require at least one of ⌘ / ⌥ / ⌃ (or a Function key F1-F12) so normal typing is never hijacked
-        guard hasPrimaryModifier || isFunctionKey else {
-            return nil
+        return GlobalHotkeyConfig(kind: .keyCombo, keyCode: code, modifiers: carbonMods)
+    }
+
+    static func modifierFlag(for modifierKeyCode: UInt32) -> NSEvent.ModifierFlags? {
+        switch Int(modifierKeyCode) {
+        case kVK_Option, kVK_RightOption: return .option
+        case kVK_Command, kVK_RightCommand: return .command
+        case kVK_Control, kVK_RightControl: return .control
+        case kVK_Shift, kVK_RightShift: return .shift
+        case kVK_Function: return .function
+        default: return nil
         }
-        return GlobalHotkeyConfig(keyCode: code, modifiers: carbonMods)
+    }
+
+    static func modifierKeyName(for keyCode: UInt32) -> String {
+        switch Int(keyCode) {
+        case kVK_RightOption: return "右 ⌥"
+        case kVK_Option: return "左 ⌥"
+        case kVK_RightCommand: return "右 ⌘"
+        case kVK_Command: return "左 ⌘"
+        case kVK_RightControl: return "右 ⌃"
+        case kVK_Control: return "左 ⌃"
+        case kVK_RightShift: return "右 ⇧"
+        case kVK_Shift: return "左 ⇧"
+        case kVK_Function: return "Fn 🌐"
+        default: return "Modifier"
+        }
     }
 
     private static let functionKeyCodes: Set<UInt32> = [
         UInt32(kVK_F1), UInt32(kVK_F2), UInt32(kVK_F3), UInt32(kVK_F4),
         UInt32(kVK_F5), UInt32(kVK_F6), UInt32(kVK_F7), UInt32(kVK_F8),
-        UInt32(kVK_F9), UInt32(kVK_F10), UInt32(kVK_F11), UInt32(kVK_F12)
+        UInt32(kVK_F9), UInt32(kVK_F10), UInt32(kVK_F11), UInt32(kVK_F12),
+        UInt32(kVK_F13), UInt32(kVK_F14), UInt32(kVK_F15), UInt32(kVK_F16),
+        UInt32(kVK_F17), UInt32(kVK_F18), UInt32(kVK_F19), UInt32(kVK_F20)
     ]
 
-    private static func isModifierOnlyKeyCode(_ code: UInt32) -> Bool {
+    static func isModifierOnlyKeyCode(_ code: UInt32) -> Bool {
         switch Int(code) {
         case kVK_Command, kVK_RightCommand, kVK_Shift, kVK_RightShift,
              kVK_Option, kVK_RightOption, kVK_Control, kVK_RightControl,

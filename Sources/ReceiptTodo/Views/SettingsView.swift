@@ -267,9 +267,28 @@ struct SettingsView: View {
                         }
 
                         if draft.globalHotkeyEnabled {
-                            Text("点击右侧快捷键框后直接按下想要的组合键（需含 ⌘ / ⌥ / ⌃，按 Esc 取消），或点下拉选择常用预设。")
+                            Text("点击右侧框后直接按下任意单键（如 F5、右 ⌥、Fn）或组合键（按 Esc 取消），也可点下拉选预设。")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
+
+                            if draft.globalHotkey.isPlainTypingSingleKey {
+                                Text("⚠️ 单按常用字母/空格可能影响其他软件打字，更推荐 F5、单按右 ⌥ / Fn 或组合键。")
+                                    .font(.caption)
+                                    .foregroundColor(.orange)
+                            } else if draft.globalHotkey.isSingleModifier && !AXIsProcessTrusted() {
+                                HStack(spacing: 6) {
+                                    Text("提示：单修饰键（如右 ⌥ / Fn）在其他软件中全局响应需开启「辅助功能」权限。")
+                                        .font(.caption)
+                                        .foregroundColor(.orange)
+                                    Button("去开启") {
+                                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                                            NSWorkspace.shared.open(url)
+                                        }
+                                    }
+                                    .font(.caption)
+                                    .buttonStyle(.link)
+                                }
+                            }
                         }
                     }
 
@@ -392,8 +411,10 @@ private struct ShortcutRecorderControl: View {
     @Binding var hotkey: GlobalHotkeyConfig
 
     @State private var isRecording = false
-    @State private var keyMonitor: Any?
-    @State private var warningFlash = false
+    @State private var keyDownMonitor: Any?
+    @State private var flagsMonitor: Any?
+    @State private var pendingModifierKeyCode: UInt32?
+    @State private var pendingModifierInvalidated = false
 
     var body: some View {
         HStack(spacing: 5) {
@@ -404,11 +425,11 @@ private struct ShortcutRecorderControl: View {
                     startRecording()
                 }
             } label: {
-                Text(isRecording ? "请按下组合键..." : hotkey.displaySymbols)
+                Text(isRecording ? "按下单键或组合键..." : hotkey.displaySymbols)
                     .font(.system(size: 11.5, weight: .semibold, design: .monospaced))
                     .foregroundColor(isRecording ? .accentColor : .primary)
                     .padding(.horizontal, 10)
-                    .frame(minWidth: 96)
+                    .frame(minWidth: 108)
                     .frame(height: 24)
                     .background(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
@@ -417,15 +438,13 @@ private struct ShortcutRecorderControl: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .stroke(
-                                warningFlash
-                                    ? Color.red
-                                    : (isRecording ? Color.accentColor : Color.primary.opacity(0.18)),
+                                isRecording ? Color.accentColor : Color.primary.opacity(0.18),
                                 lineWidth: isRecording ? 1.5 : 0.8
                             )
                     )
             }
             .buttonStyle(.plain)
-            .help(isRecording ? "直接按下新的组合键，或按 Esc 取消" : "点击后按下自定义快捷键")
+            .help(isRecording ? "按下单键（如 F5、右 ⌥、Fn）或组合键，按 Esc 取消" : "点击后按下自定义单键或组合键")
 
             // Quick presets menu for effortless 1-click conflict avoidance
             Menu {
@@ -478,40 +497,69 @@ private struct ShortcutRecorderControl: View {
     private func startRecording() {
         stopRecording()
         isRecording = true
-        warningFlash = false
+        pendingModifierKeyCode = nil
+        pendingModifierInvalidated = false
         GlobalHotkeyManager.shared.pauseTemporarily()
 
-        keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+        let relevantMask: NSEvent.ModifierFlags = [.command, .option, .control, .shift, .function]
+
+        // 1. Capture any key combination OR single regular key (e.g. F5, `, etc.)
+        keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            pendingModifierInvalidated = true
             if event.keyCode == UInt16(kVK_Escape) {
                 Task { @MainActor in
                     stopRecording()
                 }
                 return nil
             }
-
-            if let captured = GlobalHotkeyConfig.from(event: event) {
+            if let captured = GlobalHotkeyConfig.from(keyDownEvent: event) {
                 Task { @MainActor in
                     hotkey = captured
                     stopRecording()
                 }
-                return nil
-            } else {
-                // Flash red border briefly if user pressed a plain letter without ⌘/⌥/⌃
-                Task { @MainActor in
-                    withAnimation(.easeInOut(duration: 0.12)) { warningFlash = true }
-                    try? await Task.sleep(nanoseconds: 350_000_000)
-                    withAnimation(.easeOut(duration: 0.2)) { warningFlash = false }
-                }
-                return nil
             }
+            return nil
+        }
+
+        // 2. Capture single modifier key tap-and-release (e.g. tapping 右 ⌥ or Fn 🌐 alone!)
+        flagsMonitor = NSEvent.addLocalMonitorForEvents(matching: .flagsChanged) { event in
+            let code = UInt32(event.keyCode)
+            guard let flag = GlobalHotkeyConfig.modifierFlag(for: code) else { return event }
+            let active = event.modifierFlags.intersection(relevantMask)
+
+            if active.contains(flag) {
+                if active == flag {
+                    pendingModifierKeyCode = code
+                    pendingModifierInvalidated = false
+                } else {
+                    pendingModifierInvalidated = true
+                }
+            } else {
+                if pendingModifierKeyCode == code && !pendingModifierInvalidated {
+                    let captured = GlobalHotkeyConfig(kind: .singleModifier, keyCode: code, modifiers: 0)
+                    Task { @MainActor in
+                        hotkey = captured
+                        stopRecording()
+                    }
+                }
+                pendingModifierKeyCode = nil
+                pendingModifierInvalidated = false
+            }
+            return event
         }
     }
 
     private func stopRecording() {
-        if let monitor = keyMonitor {
+        if let monitor = keyDownMonitor {
             NSEvent.removeMonitor(monitor)
-            keyMonitor = nil
+            keyDownMonitor = nil
         }
+        if let monitor = flagsMonitor {
+            NSEvent.removeMonitor(monitor)
+            flagsMonitor = nil
+        }
+        pendingModifierKeyCode = nil
+        pendingModifierInvalidated = false
         if isRecording {
             isRecording = false
             GlobalHotkeyManager.shared.resumeIfNeeded()
